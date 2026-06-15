@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  PASSENGER
+  OPERATOR
+}
+
+enum TripStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  phone     String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routes   Route[]
+  buses    Bus[]
+  trips    Trip[]
+  bookings Booking[]
+}
+
+model Route {
+  id          String   @id @default(uuid())
+  origin      String
+  destination String
+  operatorId  String
+  operator    User     @relation(fields: [operatorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trips Trip[]
+
+  @@unique([origin, destination])
+}
+
+model Bus {
+  id          String   @id @default(uuid())
+  name        String
+  plateNumber String   @unique
+  totalSeats  Int
+  operatorId  String
+  operator    User     @relation(fields: [operatorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trips Trip[]
+}
+
+model Trip {
+  id            String     @id @default(uuid())
+  date          DateTime
+  departureTime DateTime
+  arrivalTime   DateTime
+  price         Decimal
+  status        TripStatus @default(SCHEDULED)
+  routeId       String
+  route         Route      @relation(fields: [routeId], references: [id])
+  busId         String
+  bus           Bus        @relation(fields: [busId], references: [id])
+  operatorId    String
+  operator      User       @relation(fields: [operatorId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  bookings Booking[]
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  seatNumber  Int
+  status      BookingStatus @default(PENDING)
+  tripId      String
+  trip        Trip          @relation(fields: [tripId], references: [id])
+  passengerId String
+  passenger   User          @relation(fields: [passengerId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([tripId, seatNumber])
+}
