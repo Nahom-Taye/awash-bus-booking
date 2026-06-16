@@ -54,7 +54,7 @@ model Route {
 
   trips Trip[]
 
-  @@unique([origin, destination])
+  @@unique([operatorId, origin, destination])
 }
 
 model Bus {
