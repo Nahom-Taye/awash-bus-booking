@@ -59,7 +59,6 @@ model Route {
 
 model Bus {
   id          String   @id @default(uuid())
-  name        String
   plateNumber String   @unique
   totalSeats  Int
   operatorId  String

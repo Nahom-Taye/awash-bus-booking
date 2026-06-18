@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 
 interface CreateBusBody {
-  name?: string;
   plateNumber?: string;
   totalSeats?: number;
 }
@@ -38,13 +37,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { name, plateNumber, totalSeats }: CreateBusBody = await request
+  const { plateNumber, totalSeats }: CreateBusBody = await request
     .json()
     .catch(() => ({}));
 
-  if (!name?.trim() || !plateNumber?.trim()) {
+  if (!plateNumber?.trim()) {
     return NextResponse.json(
-      { error: "name and plateNumber are required" },
+      { error: "plateNumber is required" },
       { status: 400 }
     );
   }
@@ -52,15 +51,15 @@ export async function POST(request: Request) {
   if (
     typeof totalSeats !== "number" ||
     !Number.isInteger(totalSeats) ||
-    totalSeats <= 0
+    totalSeats <= 0 ||
+    totalSeats > 48
   ) {
     return NextResponse.json(
-      { error: "totalSeats must be a positive integer" },
+      { error: "totalSeats must be a positive integer not greater than 48" },
       { status: 400 }
     );
   }
 
-  const trimmedName = name.trim();
   const trimmedPlateNumber = plateNumber.trim();
 
   const existing = await prisma.bus.findUnique({
@@ -76,7 +75,6 @@ export async function POST(request: Request) {
 
   const bus = await prisma.bus.create({
     data: {
-      name: trimmedName,
       plateNumber: trimmedPlateNumber,
       totalSeats,
       operatorId: session.user.id,
