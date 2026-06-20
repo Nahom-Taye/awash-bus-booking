@@ -88,7 +88,12 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-
+if (parsedArrival <= parsedDeparture) {
+  return NextResponse.json(
+     { error: "Arrival time must be after departure time" },
+     { status: 400 }
+     );
+  }
   const route = await prisma.route.findUnique({
     where: { id: routeId },
   });
