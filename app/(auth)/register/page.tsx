@@ -3,14 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-type Role = "PASSENGER" | "OPERATOR";
-
 interface RegisterForm {
   fullName: string;
   email: string;
   phone: string;
   password: string;
-  role: Role;
 }
 
 export default function RegisterPage() {
@@ -20,14 +17,11 @@ export default function RegisterPage() {
     email: "",
     phone: "",
     password: "",
-    role: "PASSENGER",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
@@ -36,20 +30,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "Registration failed. Please try again.");
         return;
       }
-
       router.push("/login");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -59,30 +50,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center px-4 py-12" style={{ background: "var(--awash-black)" }}>
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Awash Bus</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-3xl font-bold text-white">
+            AWASH BUS{" "}
+            <span style={{ color: "var(--awash-gold)" }}>አዋሽ ባስ</span>
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--awash-grey-medium)" }}>
             Create your account to start booking
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 rounded-xl border border-gray-200 bg-white p-8 shadow-sm"
+          className="space-y-5 rounded-xl bg-white p-8 shadow-lg"
+          style={{ borderLeft: "4px solid var(--awash-orange)" }}
         >
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-md px-4 py-3 text-sm text-white" style={{ background: "var(--awash-error)" }}>
               {error}
             </div>
           )}
 
           <div>
-            <label
-              htmlFor="fullName"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="fullName" className="block text-sm font-medium" style={{ color: "var(--awash-charcoal)" }}>
               Full name
             </label>
             <input
@@ -92,16 +84,14 @@ export default function RegisterPage() {
               required
               value={form.fullName}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: "1.5px solid var(--awash-grey-medium)", color: "var(--awash-black)" }}
               placeholder="Abebe Bekele"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="email" className="block text-sm font-medium" style={{ color: "var(--awash-charcoal)" }}>
               Email
             </label>
             <input
@@ -111,16 +101,14 @@ export default function RegisterPage() {
               required
               value={form.email}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: "1.5px solid var(--awash-grey-medium)", color: "var(--awash-black)" }}
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="phone" className="block text-sm font-medium" style={{ color: "var(--awash-charcoal)" }}>
               Phone
             </label>
             <input
@@ -130,16 +118,14 @@ export default function RegisterPage() {
               required
               value={form.phone}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: "1.5px solid var(--awash-grey-medium)", color: "var(--awash-black)" }}
               placeholder="+251 9XX XXX XXX"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="password" className="block text-sm font-medium" style={{ color: "var(--awash-charcoal)" }}>
               Password
             </label>
             <input
@@ -149,44 +135,24 @@ export default function RegisterPage() {
               required
               value={form.password}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: "1.5px solid var(--awash-grey-medium)", color: "var(--awash-black)" }}
               placeholder="••••••••"
             />
-          </div>
-
-          <div>
-            <label
-              htmlFor="role"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Account type
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="PASSENGER">Passenger</option>
-              <option value="OPERATOR">Operator</option>
-            </select>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ background: "var(--awash-orange)" }}
           >
             {loading ? "Creating account..." : "Create account"}
           </button>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm" style={{ color: "var(--awash-grey-dark)" }}>
             Already have an account?{" "}
-            <a
-              href="/login"
-              className="font-medium text-blue-600 hover:text-blue-700"
-            >
+            <a href="/login" className="font-medium" style={{ color: "var(--awash-orange)" }}>
               Sign in
             </a>
           </p>

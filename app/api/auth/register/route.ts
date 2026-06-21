@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
@@ -8,17 +7,16 @@ interface RegisterBody {
   email?: string;
   phone?: string;
   password?: string;
-  role?: Role;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { fullName, email, phone, password, role }: RegisterBody =
+    const { fullName, email, phone, password }: RegisterBody =
       await request.json();
 
-    if (!fullName || !email || !phone || !password || !role) {
+    if (!fullName || !email || !phone || !password) {
       return NextResponse.json(
-        { error: "fullName, email, phone, password and role are required" },
+        { error: "fullName, email, phone and password are required" },
         { status: 400 }
       );
     }
@@ -40,7 +38,7 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         password: hashedPassword,
-        role,
+        role: "PASSENGER",
       },
       select: {
         id: true,
