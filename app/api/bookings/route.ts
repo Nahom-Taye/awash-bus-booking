@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       bookings.map((booking) => ({
         id: booking.id,
         seatNumber: booking.seatNumber,
-        fullName: booking.fullName,
+        fullName: (booking as typeof booking & { fullName: string }).fullName,
       })),
       { status: 201 }
     );
