@@ -39,12 +39,13 @@ interface Trip {
   updatedAt: string;
 }
 
-type Tab = "routes" | "buses" | "trips";
+type Tab = "routes" | "buses" | "trips" | "bookings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "routes", label: "Routes" },
   { key: "buses", label: "Buses" },
   { key: "trips", label: "Trips" },
+  { key: "bookings", label: "Bookings" },
 ];
 
 export default function OperatorDashboardPage() {
@@ -84,6 +85,7 @@ export default function OperatorDashboardPage() {
         {activeTab === "routes" && <RoutesTab />}
         {activeTab === "buses" && <BusesTab />}
         {activeTab === "trips" && <TripsTab />}
+        {activeTab === "bookings" && <BookingsTab />}
       </div>
     </div>
   );
@@ -532,9 +534,9 @@ function TripsTab() {
       return;
     }
 
-    const departureIso = new Date(`${date}T${departureTime}`).toISOString();
-    const arrivalIso = new Date(`${date}T${arrivalTime}`).toISOString();
-    const dateIso = new Date(`${date}T00:00:00`).toISOString();
+    const departureIso = new Date(`${date}T${departureTime}:00`).toISOString();
+    const arrivalIso = new Date(`${date}T${arrivalTime}:00`).toISOString();
+    const dateIso = `${date}T00:00:00.000Z`;
 
     if (
       Number.isNaN(new Date(departureIso).getTime()) ||
@@ -783,5 +785,127 @@ function TripsTab() {
         )}
       </section>
     </div>
+  );
+}
+
+type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
+
+interface BookingItem {
+  id: string;
+  seatNumber: number;
+  status: BookingStatus;
+  fullName: string;
+  phone: string;
+  createdAt: string;
+  trip: {
+    date: string;
+    departureTime: string;
+    route: {
+      origin: string;
+      destination: string;
+    };
+  };
+}
+
+const BOOKING_STATUS_STYLES: Record<BookingStatus, string> = {
+  PENDING: "bg-yellow-100 text-yellow-700",
+  CONFIRMED: "bg-green-100 text-green-700",
+  CANCELLED: "bg-red-100 text-red-700",
+};
+
+function BookingsTab() {
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/operator/bookings");
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to load bookings");
+      }
+
+      const data: BookingItem[] = await res.json();
+      setBookings(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load bookings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  return (
+    <section>
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">Bookings</h2>
+
+      {loading ? (
+        <p className="text-gray-600">Loading bookings...</p>
+      ) : error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-600">{error}</p>
+          <button
+            onClick={fetchBookings}
+            className="mt-2 text-sm font-medium text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      ) : bookings.length === 0 ? (
+        <p className="text-gray-600">No bookings yet.</p>
+      ) : (
+        <ul className="space-y-3">
+          {bookings.map((booking) => (
+            <li
+              key={booking.id}
+              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {booking.trip.route.origin}{" "}
+                    <span className="text-gray-400">&rarr;</span>{" "}
+                    {booking.trip.route.destination}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    #{booking.id.slice(0, 8)}...
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${BOOKING_STATUS_STYLES[booking.status]}`}
+                >
+                  {booking.status}
+                </span>
+              </div>
+
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="font-medium text-gray-900">
+                  {booking.fullName}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {booking.phone}
+                </p>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                <span>{formatDate(booking.trip.date)}</span>
+                <span>{formatTime(booking.trip.departureTime)}</span>
+                <span className="font-medium text-gray-900">
+                  Seat {booking.seatNumber}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

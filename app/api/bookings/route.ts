@@ -105,6 +105,8 @@ export async function POST(request: Request) {
             data: {
               tripId,
               seatNumber: p.seatNumber as number,
+              fullName: p.fullName as string,
+              phone: p.phone as string,
               passengerId,
               status: "CONFIRMED",
             },
@@ -113,13 +115,11 @@ export async function POST(request: Request) {
       );
     });
 
-    const bySeat = new Map(passengers.map((p) => [p.seatNumber, p]));
-
     return NextResponse.json(
       bookings.map((booking) => ({
         id: booking.id,
         seatNumber: booking.seatNumber,
-        fullName: bySeat.get(booking.seatNumber)?.fullName,
+        fullName: booking.fullName,
       })),
       { status: 201 }
     );
