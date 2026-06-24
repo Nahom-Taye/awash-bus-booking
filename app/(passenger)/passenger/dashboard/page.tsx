@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 interface Route {
   id: string;
@@ -91,6 +91,20 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "bookings", label: "My Bookings" },
 ];
 
+const INPUT_STYLE: React.CSSProperties = {
+  border: "1.5px solid var(--awash-grey-medium)",
+  borderRadius: "8px",
+  color: "var(--awash-charcoal)",
+};
+
+function handleInputFocus(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.border = "1.5px solid var(--awash-blue)";
+}
+
+function handleInputBlur(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.border = "1.5px solid var(--awash-grey-medium)";
+}
+
 export default function PassengerDashboardPage() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("search");
@@ -139,190 +153,312 @@ export default function PassengerDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Find a trip</h1>
-          <p className="mt-1 text-gray-600">
+    <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+      {/* Top navbar */}
+      <header
+        className="sticky top-0 z-20 flex items-center justify-between px-6"
+        style={{ height: "64px", background: "var(--awash-black)" }}
+      >
+        <span className="text-lg font-bold">
+          <span style={{ color: "var(--awash-white)" }}>AWASH BUS | </span>
+          <span style={{ color: "var(--awash-gold)" }}>አዋሽ ባስ</span>
+        </span>
+
+        <div className="flex items-center gap-4">
+          <span className="text-sm" style={{ color: "var(--awash-white)" }}>
             {status === "loading"
               ? "Loading..."
-              : `Signed in as ${session?.user?.fullName ?? "Guest"}`}
-          </p>
-        </header>
+              : (session?.user?.fullName ?? "Guest")}
+          </span>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="rounded-lg px-4 py-2 text-sm font-semibold transition"
+            style={{ background: "var(--awash-orange)", color: "var(--awash-white)" }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "var(--awash-orange-dark)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "var(--awash-orange)")
+            }
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
 
-        <nav className="mb-8 flex gap-1 border-b border-gray-200">
-          {TABS.map((tab) => (
+      {/* Tab navigation */}
+      <nav
+        className="flex gap-1 px-6"
+        style={{
+          background: "var(--awash-white)",
+          borderBottom: "1px solid var(--awash-grey)",
+        }}
+      >
+        {TABS.map((tab) => {
+          const active = activeTab === tab.key;
+          return (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-                activeTab === tab.key
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
+              className="-mb-px px-4 py-3 text-sm font-medium transition"
+              style={{
+                borderBottom: active
+                  ? "2px solid var(--awash-orange)"
+                  : "2px solid transparent",
+                color: active
+                  ? "var(--awash-orange)"
+                  : "var(--awash-grey-dark)",
+              }}
             >
               {tab.label}
             </button>
-          ))}
-        </nav>
+          );
+        })}
+      </nav>
 
+      <div className="mx-auto w-full max-w-2xl px-4 py-10">
         {activeTab === "search" && (
           <>
-        <form
-          onSubmit={handleSubmit}
-          className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Search available trips
-          </h2>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="origin"
-                className="mb-1 block text-sm font-medium text-gray-700"
+            <form
+              onSubmit={handleSubmit}
+              className="mb-8 p-6"
+              style={{
+                background: "var(--awash-white)",
+                borderRadius: "12px",
+                borderLeft: "4px solid var(--awash-orange)",
+                boxShadow:
+                  "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <h2
+                className="mb-4 text-lg font-bold"
+                style={{ color: "var(--awash-black)" }}
               >
-                Origin
-              </label>
-              <input
-                id="origin"
-                type="text"
-                required
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                placeholder="Addis Ababa"
-              />
-            </div>
+                Search Available Trips
+              </h2>
 
-            <div>
-              <label
-                htmlFor="destination"
-                className="mb-1 block text-sm font-medium text-gray-700"
-              >
-                Destination
-              </label>
-              <input
-                id="destination"
-                type="text"
-                required
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                placeholder="Awash"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="date"
-                className="mb-1 block text-sm font-medium text-gray-700"
-              >
-                Date
-              </label>
-              <input
-                id="date"
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-              />
-            </div>
-          </div>
-
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Searching..." : "Search"}
-          </button>
-        </form>
-
-        <section>
-          {loading ? (
-            <p className="text-gray-600">Searching trips...</p>
-          ) : trips === null ? (
-            <p className="text-gray-600">
-              Enter your trip details above to search.
-            </p>
-          ) : trips.length === 0 ? (
-            <p className="text-gray-600">No trips found.</p>
-          ) : (
-            <ul className="space-y-3">
-              {trips.map((trip) => {
-                const availableSeats =
-                  trip.bus.totalSeats - trip._count.bookings;
-                const soldOut = availableSeats <= 0;
-
-                return (
-                  <li
-                    key={trip.id}
-                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="origin"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {trip.route.origin}{" "}
-                          <span className="text-gray-400">&rarr;</span>{" "}
-                          {trip.route.destination}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">
-                          Bus {trip.bus.plateNumber}
-                        </p>
-                      </div>
-                      <span className="font-medium text-gray-900">
-                        {trip.price} ETB
-                      </span>
-                    </div>
+                    Origin
+                  </label>
+                  <input
+                    id="origin"
+                    type="text"
+                    required
+                    value={origin}
+                    onChange={(e) => setOrigin(e.target.value)}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full px-3 py-2 focus:outline-none"
+                    style={INPUT_STYLE}
+                    placeholder="Addis Ababa"
+                  />
+                </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                      <span>
-                        {formatTime(trip.departureTime)} &ndash;{" "}
-                        {formatTime(trip.arrivalTime)}
-                      </span>
-                      <span
-                        className={
-                          soldOut
-                            ? "font-medium text-red-600"
-                            : "font-medium text-green-700"
-                        }
+                <div>
+                  <label
+                    htmlFor="destination"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
+                  >
+                    Destination
+                  </label>
+                  <input
+                    id="destination"
+                    type="text"
+                    required
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full px-3 py-2 focus:outline-none"
+                    style={INPUT_STYLE}
+                    placeholder="Awash"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="date"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
+                  >
+                    Date
+                  </label>
+                  <input
+                    id="date"
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full px-3 py-2 focus:outline-none"
+                    style={INPUT_STYLE}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  background: "var(--awash-orange)",
+                  color: "var(--awash-white)",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--awash-orange-dark)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "var(--awash-orange)")
+                }
+              >
+                {loading ? "Searching..." : "Search"}
+              </button>
+            </form>
+
+            <section>
+              {loading ? (
+                <p style={{ color: "var(--awash-grey-dark)" }}>Searching trips...</p>
+              ) : trips === null ? (
+                <p style={{ color: "var(--awash-grey-dark)" }}>
+                  Enter your trip details above to search.
+                </p>
+              ) : trips.length === 0 ? (
+                <p style={{ color: "var(--awash-grey-dark)" }}>No trips found.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {trips.map((trip) => {
+                    const availableSeats =
+                      trip.bus.totalSeats - trip._count.bookings;
+                    const soldOut = availableSeats <= 0;
+
+                    return (
+                      <li
+                        key={trip.id}
+                        className="p-4 transition"
+                        style={{
+                          background: "var(--awash-white)",
+                          borderRadius: "12px",
+                          borderTop: "4px solid var(--awash-orange)",
+                          boxShadow:
+                            "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-3px)";
+                          e.currentTarget.style.boxShadow =
+                            "0 12px 20px -4px rgba(0,0,0,0.15), 0 6px 8px -2px rgba(0,0,0,0.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow =
+                            "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)";
+                        }}
                       >
-                        {soldOut
-                          ? "Sold out"
-                          : `${availableSeats} seat${
-                              availableSeats === 1 ? "" : "s"
-                            } available`}
-                      </span>
-                    </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p
+                              className="font-bold"
+                              style={{ color: "var(--awash-black)" }}
+                            >
+                              {trip.route.origin}{" "}
+                              <span style={{ color: "var(--awash-grey-dark)" }}>
+                                &rarr;
+                              </span>{" "}
+                              {trip.route.destination}
+                            </p>
+                            <p
+                              className="mt-1 text-sm"
+                              style={{ color: "var(--awash-grey-dark)" }}
+                            >
+                              Bus {trip.bus.plateNumber}
+                            </p>
+                          </div>
+                          <span
+                            className="font-bold"
+                            style={{ color: "var(--awash-orange)" }}
+                          >
+                            {trip.price} ETB
+                          </span>
+                        </div>
 
-                    <div className="mt-4">
-                      {soldOut ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                        <div
+                          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+                          style={{ color: "var(--awash-grey-dark)" }}
                         >
-                          Book Now
-                        </button>
-                      ) : (
-                        <Link
-                          href={`/passenger/booking/${trip.id}`}
-                          className="inline-block rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
-                        >
-                          Book Now
-                        </Link>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+                          <span>
+                            {formatTime(trip.departureTime)} &ndash;{" "}
+                            {formatTime(trip.arrivalTime)}
+                          </span>
+                          <span
+                            className="font-semibold"
+                            style={{
+                              color: soldOut
+                                ? "var(--awash-error)"
+                                : "var(--awash-success)",
+                            }}
+                          >
+                            {soldOut
+                              ? "Sold out"
+                              : `${availableSeats} seat${
+                                  availableSeats === 1 ? "" : "s"
+                                } available`}
+                          </span>
+                        </div>
+
+                        <div className="mt-4">
+                          {soldOut ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                              style={{
+                                background: "var(--awash-orange)",
+                                color: "var(--awash-white)",
+                              }}
+                            >
+                              Book Now
+                            </button>
+                          ) : (
+                            <Link
+                              href={`/passenger/booking/${trip.id}`}
+                              className="inline-block rounded-lg px-4 py-2 text-sm font-semibold transition"
+                              style={{
+                                background: "var(--awash-orange)",
+                                color: "var(--awash-white)",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--awash-orange-dark)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--awash-orange)")
+                              }
+                            >
+                              Book Now
+                            </Link>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
           </>
         )}
 
@@ -332,10 +468,10 @@ export default function PassengerDashboardPage() {
   );
 }
 
-const BOOKING_STATUS_STYLES: Record<BookingStatus, string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  CONFIRMED: "bg-green-100 text-green-700",
-  CANCELLED: "bg-red-100 text-red-700",
+const BOOKING_STATUS_STYLES: Record<BookingStatus, React.CSSProperties> = {
+  PENDING: { background: "var(--awash-warning)", color: "var(--awash-white)" },
+  CONFIRMED: { background: "var(--awash-success)", color: "var(--awash-white)" },
+  CANCELLED: { background: "var(--awash-error)", color: "var(--awash-white)" },
 };
 
 function MyBookingsTab() {
@@ -370,22 +506,27 @@ function MyBookingsTab() {
 
   return (
     <section>
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">My bookings</h2>
+      <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-black)" }}>
+        My Bookings
+      </h2>
 
       {loading ? (
-        <p className="text-gray-600">Loading bookings...</p>
+        <p style={{ color: "var(--awash-grey-dark)" }}>Loading bookings...</p>
       ) : error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm" style={{ color: "var(--awash-error)" }}>
+            {error}
+          </p>
           <button
             onClick={fetchBookings}
-            className="mt-2 text-sm font-medium text-red-700 underline"
+            className="mt-2 text-sm font-medium underline"
+            style={{ color: "var(--awash-error)" }}
           >
             Try again
           </button>
         </div>
       ) : bookings.length === 0 ? (
-        <p className="text-gray-600">
+        <p style={{ color: "var(--awash-grey-dark)" }}>
           No bookings yet. Search for a trip to get started.
         </p>
       ) : (
@@ -393,37 +534,66 @@ function MyBookingsTab() {
           {bookings.map((booking) => (
             <li
               key={booking.id}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="p-4 transition"
+              style={{
+                background: "var(--awash-white)",
+                borderRadius: "12px",
+                borderTop: "4px solid var(--awash-orange)",
+                boxShadow:
+                  "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-3px)";
+                e.currentTarget.style.boxShadow =
+                  "0 12px 20px -4px rgba(0,0,0,0.15), 0 6px 8px -2px rgba(0,0,0,0.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)";
+              }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-bold" style={{ color: "var(--awash-black)" }}>
                     {booking.trip.route.origin}{" "}
-                    <span className="text-gray-400">&rarr;</span>{" "}
+                    <span style={{ color: "var(--awash-grey-dark)" }}>&rarr;</span>{" "}
                     {booking.trip.route.destination}
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p
+                    className="mt-1 font-mono text-sm"
+                    style={{ color: "var(--awash-grey-dark)" }}
+                  >
                     #{booking.id.slice(0, 8)}...
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${BOOKING_STATUS_STYLES[booking.status]}`}
+                  className="rounded-full px-3 py-1 text-xs font-semibold"
+                  style={BOOKING_STATUS_STYLES[booking.status]}
                 >
                   {booking.status}
                 </span>
               </div>
 
-              <div className="mt-3 border-t border-gray-100 pt-3">
-                <p className="font-medium text-gray-900">{booking.fullName}</p>
+              <div
+                className="mt-3 pt-3"
+                style={{ borderTop: "1px solid var(--awash-grey)" }}
+              >
+                <p className="font-medium" style={{ color: "var(--awash-black)" }}>
+                  {booking.fullName}
+                </p>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+              <div
+                className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+                style={{ color: "var(--awash-grey-dark)" }}
+              >
                 <span>{formatDate(booking.trip.date)}</span>
                 <span>{formatTime(booking.trip.departureTime)}</span>
-                <span className="font-medium text-gray-900">
+                <span className="font-semibold" style={{ color: "var(--awash-black)" }}>
                   Seat {booking.seatNumber}
                 </span>
-                <span className="font-medium text-gray-900">
+                <span className="font-bold" style={{ color: "var(--awash-orange)" }}>
                   {booking.trip.price} ETB
                 </span>
               </div>

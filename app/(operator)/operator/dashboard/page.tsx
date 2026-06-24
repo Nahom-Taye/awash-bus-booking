@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 interface Route {
   id: string;
@@ -48,45 +48,133 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "bookings", label: "Bookings" },
 ];
 
+// --- Shared brand styling helpers (inline styles only handle the live value;
+// pseudo-states like focus/hover are wired through small event handlers) ---
+
+const formCardStyle: React.CSSProperties = {
+  background: "var(--awash-white)",
+  borderRadius: "12px",
+  borderLeft: "4px solid var(--awash-orange)",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+};
+
+const listCardStyle: React.CSSProperties = {
+  background: "var(--awash-white)",
+  borderRadius: "12px",
+  borderTop: "4px solid var(--awash-orange)",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "1.5px solid #D6D6D6",
+  color: "var(--awash-black)",
+};
+
+function handleInputFocus(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = "var(--awash-blue)";
+}
+
+function handleInputBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = "#D6D6D6";
+}
+
+function handleSubmitHover(e: React.MouseEvent<HTMLButtonElement>) {
+  e.currentTarget.style.background = "var(--awash-orange-dark)";
+}
+
+function handleSubmitLeave(e: React.MouseEvent<HTMLButtonElement>) {
+  e.currentTarget.style.background = "var(--awash-orange)";
+}
+
+const submitButtonStyle: React.CSSProperties = {
+  background: "var(--awash-orange)",
+};
+
+// Hover lift handlers for list cards (translateY -3px + deeper shadow)
+function handleCardHover(e: React.MouseEvent<HTMLLIElement>) {
+  e.currentTarget.style.transform = "translateY(-3px)";
+  e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.12)";
+}
+
+function handleCardLeave(e: React.MouseEvent<HTMLLIElement>) {
+  e.currentTarget.style.transform = "translateY(0)";
+  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.08)";
+}
+
 export default function OperatorDashboardPage() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("routes");
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Operator Dashboard
-          </h1>
-          <p className="mt-1 text-gray-600">
+    <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+      {/* Top navbar */}
+      <header
+        className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-8"
+        style={{ height: "64px", background: "var(--awash-black)" }}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-bold text-white">AWASH BUS</span>
+          <span className="text-sm text-white">|</span>
+          <span className="text-lg font-bold" style={{ color: "var(--awash-gold)" }}>
+            አዋሽ ባስ
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className="hidden text-sm text-white sm:inline">
             {status === "loading"
               ? "Loading..."
-              : `Signed in as ${session?.user?.fullName ?? "Guest"}`}
-          </p>
-        </header>
+              : session?.user?.fullName ?? "Guest"}
+          </span>
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition"
+            style={submitButtonStyle}
+            onMouseEnter={handleSubmitHover}
+            onMouseLeave={handleSubmitLeave}
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
 
-        <nav className="mb-8 flex gap-1 border-b border-gray-200">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-                activeTab === tab.key
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+      {/* Tab navigation */}
+      <nav
+        className="sticky z-10 flex px-4 sm:px-8"
+        style={{
+          top: "64px",
+          background: "var(--awash-white)",
+          borderBottom: "1px solid #E8E8E8",
+        }}
+      >
+        <div className="mx-auto flex w-full max-w-2xl gap-1">
+          {TABS.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className="-mb-px border-b-2 px-4 py-3 text-sm font-medium transition"
+                style={{
+                  borderColor: active ? "var(--awash-orange)" : "transparent",
+                  color: active ? "var(--awash-orange)" : "#6B6B6B",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
-        {activeTab === "routes" && <RoutesTab />}
-        {activeTab === "buses" && <BusesTab />}
-        {activeTab === "trips" && <TripsTab />}
-        {activeTab === "bookings" && <BookingsTab />}
-      </div>
+      <main className="px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-2xl">
+          {activeTab === "routes" && <RoutesTab />}
+          {activeTab === "buses" && <BusesTab />}
+          {activeTab === "trips" && <TripsTab />}
+          {activeTab === "bookings" && <BookingsTab />}
+        </div>
+      </main>
     </div>
   );
 }
@@ -164,11 +252,8 @@ function RoutesTab() {
 
   return (
     <div>
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-      >
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <form onSubmit={handleSubmit} className="mb-8 p-6" style={formCardStyle}>
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Create a new route
         </h2>
 
@@ -176,7 +261,8 @@ function RoutesTab() {
           <div>
             <label
               htmlFor="origin"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Origin
             </label>
@@ -186,7 +272,10 @@ function RoutesTab() {
               required
               value={origin}
               onChange={(e) => setOrigin(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
               placeholder="Addis Ababa"
             />
           </div>
@@ -194,7 +283,8 @@ function RoutesTab() {
           <div>
             <label
               htmlFor="destination"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Destination
             </label>
@@ -204,52 +294,66 @@ function RoutesTab() {
               required
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
               placeholder="Awash"
             />
           </div>
         </div>
 
-        {formError && <p className="mt-4 text-sm text-red-600">{formError}</p>}
+        {formError && (
+          <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+            {formError}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={submitting}
-          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          style={submitButtonStyle}
+          onMouseEnter={handleSubmitHover}
+          onMouseLeave={handleSubmitLeave}
         >
           {submitting ? "Creating..." : "Create route"}
         </button>
       </form>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Existing routes
         </h2>
 
         {loading ? (
-          <p className="text-gray-600">Loading routes...</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>Loading routes...</p>
         ) : error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="rounded-lg p-4" style={{ background: "var(--awash-orange-bg)", border: "1px solid var(--awash-error)" }}>
+            <p className="text-sm" style={{ color: "var(--awash-error)" }}>{error}</p>
             <button
               onClick={fetchRoutes}
-              className="mt-2 text-sm font-medium text-red-700 underline"
+              className="mt-2 text-sm font-medium underline"
+              style={{ color: "var(--awash-error)" }}
             >
               Try again
             </button>
           </div>
         ) : routes.length === 0 ? (
-          <p className="text-gray-600">No routes yet. Create one above.</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>No routes yet. Create one above.</p>
         ) : (
           <ul className="space-y-3">
             {routes.map((route) => (
               <li
                 key={route.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                className="p-4 transition"
+                style={listCardStyle}
+                onMouseEnter={handleCardHover}
+                onMouseLeave={handleCardLeave}
               >
-                <p className="font-medium text-gray-900">
+                <p className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                   {route.origin}{" "}
-                  <span className="text-gray-400">&rarr;</span>{" "}
+                  <span style={{ color: "var(--awash-orange)" }}>&rarr;</span>{" "}
                   {route.destination}
                 </p>
               </li>
@@ -341,11 +445,8 @@ function BusesTab() {
 
   return (
     <div>
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-      >
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <form onSubmit={handleSubmit} className="mb-8 p-6" style={formCardStyle}>
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Add a new bus
         </h2>
 
@@ -353,7 +454,8 @@ function BusesTab() {
           <div>
             <label
               htmlFor="plate-number"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Plate number
             </label>
@@ -363,7 +465,10 @@ function BusesTab() {
               required
               value={plateNumber}
               onChange={(e) => setPlateNumber(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
               placeholder="AA-12345"
             />
           </div>
@@ -371,7 +476,8 @@ function BusesTab() {
           <div>
             <label
               htmlFor="total-seats"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Total seats
             </label>
@@ -383,55 +489,72 @@ function BusesTab() {
               max={48}
               value={totalSeats}
               onChange={(e) => setTotalSeats(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
               placeholder="48"
             />
           </div>
         </div>
 
-        {formError && <p className="mt-4 text-sm text-red-600">{formError}</p>}
+        {formError && (
+          <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+            {formError}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={submitting}
-          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          style={submitButtonStyle}
+          onMouseEnter={handleSubmitHover}
+          onMouseLeave={handleSubmitLeave}
         >
           {submitting ? "Adding..." : "Add bus"}
         </button>
       </form>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Existing buses
         </h2>
 
         {loading ? (
-          <p className="text-gray-600">Loading buses...</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>Loading buses...</p>
         ) : error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="rounded-lg p-4" style={{ background: "var(--awash-orange-bg)", border: "1px solid var(--awash-error)" }}>
+            <p className="text-sm" style={{ color: "var(--awash-error)" }}>{error}</p>
             <button
               onClick={fetchBuses}
-              className="mt-2 text-sm font-medium text-red-700 underline"
+              className="mt-2 text-sm font-medium underline"
+              style={{ color: "var(--awash-error)" }}
             >
               Try again
             </button>
           </div>
         ) : buses.length === 0 ? (
-          <p className="text-gray-600">No buses yet. Add one above.</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>No buses yet. Add one above.</p>
         ) : (
           <ul className="space-y-3">
             {buses.map((bus) => (
               <li
                 key={bus.id}
-                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                className="flex items-center justify-between p-4 transition"
+                style={listCardStyle}
+                onMouseEnter={handleCardHover}
+                onMouseLeave={handleCardLeave}
               >
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                     Plate {bus.plateNumber}
                   </p>
                 </div>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+                <span
+                  className="rounded-full px-3 py-1 text-sm font-medium"
+                  style={{ background: "var(--awash-blue-bg)", color: "var(--awash-blue)" }}
+                >
                   {bus.totalSeats} seats
                 </span>
               </li>
@@ -447,6 +570,13 @@ const STATUS_STYLES: Record<TripStatus, string> = {
   SCHEDULED: "bg-blue-100 text-blue-700",
   CANCELLED: "bg-red-100 text-red-700",
   COMPLETED: "bg-green-100 text-green-700",
+};
+
+// Brand badge colors for trip statuses (white text on solid brand backgrounds)
+const TRIP_BADGE_STYLES: Record<TripStatus, React.CSSProperties> = {
+  SCHEDULED: { background: "#1E3FA0", color: "#FFFFFF" },
+  CANCELLED: { background: "#C0392B", color: "#FFFFFF" },
+  COMPLETED: { background: "#27AE60", color: "#FFFFFF" },
 };
 
 function formatDate(value: string): string {
@@ -583,11 +713,8 @@ function TripsTab() {
 
   return (
     <div>
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-      >
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <form onSubmit={handleSubmit} className="mb-8 p-6" style={formCardStyle}>
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Schedule a new trip
         </h2>
 
@@ -595,7 +722,8 @@ function TripsTab() {
           <div>
             <label
               htmlFor="trip-route"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Route
             </label>
@@ -604,7 +732,10 @@ function TripsTab() {
               required
               value={routeId}
               onChange={(e) => setRouteId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
             >
               <option value="" disabled>
                 Select a route
@@ -620,7 +751,8 @@ function TripsTab() {
           <div>
             <label
               htmlFor="trip-bus"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Bus
             </label>
@@ -629,7 +761,10 @@ function TripsTab() {
               required
               value={busId}
               onChange={(e) => setBusId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
             >
               <option value="" disabled>
                 Select a bus
@@ -645,7 +780,8 @@ function TripsTab() {
           <div>
             <label
               htmlFor="trip-date"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Date
             </label>
@@ -655,14 +791,18 @@ function TripsTab() {
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
             />
           </div>
 
           <div>
             <label
               htmlFor="trip-price"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Price
             </label>
@@ -674,7 +814,10 @@ function TripsTab() {
               step="0.01"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
               placeholder="500"
             />
           </div>
@@ -682,7 +825,8 @@ function TripsTab() {
           <div>
             <label
               htmlFor="trip-departure"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Departure time
             </label>
@@ -692,14 +836,18 @@ function TripsTab() {
               required
               value={departureTime}
               onChange={(e) => setDepartureTime(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
             />
           </div>
 
           <div>
             <label
               htmlFor="trip-arrival"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Arrival time
             </label>
@@ -709,73 +857,88 @@ function TripsTab() {
               required
               value={arrivalTime}
               onChange={(e) => setArrivalTime(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              className="w-full rounded-lg px-3 py-2 outline-none transition"
+              style={inputStyle}
             />
           </div>
         </div>
 
-        {formError && <p className="mt-4 text-sm text-red-600">{formError}</p>}
+        {formError && (
+          <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+            {formError}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={submitting}
-          className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          style={submitButtonStyle}
+          onMouseEnter={handleSubmitHover}
+          onMouseLeave={handleSubmitLeave}
         >
           {submitting ? "Scheduling..." : "Schedule trip"}
         </button>
       </form>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
           Existing trips
         </h2>
 
         {loading ? (
-          <p className="text-gray-600">Loading trips...</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>Loading trips...</p>
         ) : error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="rounded-lg p-4" style={{ background: "var(--awash-orange-bg)", border: "1px solid var(--awash-error)" }}>
+            <p className="text-sm" style={{ color: "var(--awash-error)" }}>{error}</p>
             <button
               onClick={fetchData}
-              className="mt-2 text-sm font-medium text-red-700 underline"
+              className="mt-2 text-sm font-medium underline"
+              style={{ color: "var(--awash-error)" }}
             >
               Try again
             </button>
           </div>
         ) : trips.length === 0 ? (
-          <p className="text-gray-600">No trips yet. Schedule one above.</p>
+          <p style={{ color: "var(--awash-grey-dark)" }}>No trips yet. Schedule one above.</p>
         ) : (
           <ul className="space-y-3">
             {trips.map((trip) => (
               <li
                 key={trip.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                className="p-4 transition"
+                style={listCardStyle}
+                onMouseEnter={handleCardHover}
+                onMouseLeave={handleCardLeave}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                       {trip.route.origin}{" "}
-                      <span className="text-gray-400">&rarr;</span>{" "}
+                      <span style={{ color: "var(--awash-orange)" }}>&rarr;</span>{" "}
                       {trip.route.destination}
                     </p>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
                       Bus {trip.bus.plateNumber}
                     </p>
                   </div>
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[trip.status]}`}
+                    className="rounded-full px-3 py-1 text-xs font-semibold"
+                    style={TRIP_BADGE_STYLES[trip.status]}
                   >
                     {trip.status}
                   </span>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
                   <span>{formatDate(trip.date)}</span>
                   <span>
                     {formatTime(trip.departureTime)} &ndash;{" "}
                     {formatTime(trip.arrivalTime)}
                   </span>
-                  <span className="font-medium text-gray-900">
+                  <span className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                     {trip.price} ETB
                   </span>
                 </div>
@@ -813,6 +976,13 @@ const BOOKING_STATUS_STYLES: Record<BookingStatus, string> = {
   CANCELLED: "bg-red-100 text-red-700",
 };
 
+// Brand badge colors for booking statuses (white text on solid brand backgrounds)
+const BOOKING_BADGE_STYLES: Record<BookingStatus, React.CSSProperties> = {
+  PENDING: { background: "#F39C12", color: "#FFFFFF" },
+  CONFIRMED: { background: "#27AE60", color: "#FFFFFF" },
+  CANCELLED: { background: "#C0392B", color: "#FFFFFF" },
+};
+
 function BookingsTab() {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -845,60 +1015,67 @@ function BookingsTab() {
 
   return (
     <section>
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">Bookings</h2>
+      <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-charcoal)" }}>
+        Bookings
+      </h2>
 
       {loading ? (
-        <p className="text-gray-600">Loading bookings...</p>
+        <p style={{ color: "var(--awash-grey-dark)" }}>Loading bookings...</p>
       ) : error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="rounded-lg p-4" style={{ background: "var(--awash-orange-bg)", border: "1px solid var(--awash-error)" }}>
+          <p className="text-sm" style={{ color: "var(--awash-error)" }}>{error}</p>
           <button
             onClick={fetchBookings}
-            className="mt-2 text-sm font-medium text-red-700 underline"
+            className="mt-2 text-sm font-medium underline"
+            style={{ color: "var(--awash-error)" }}
           >
             Try again
           </button>
         </div>
       ) : bookings.length === 0 ? (
-        <p className="text-gray-600">No bookings yet.</p>
+        <p style={{ color: "var(--awash-grey-dark)" }}>No bookings yet.</p>
       ) : (
         <ul className="space-y-3">
           {bookings.map((booking) => (
             <li
               key={booking.id}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="p-4 transition"
+              style={listCardStyle}
+              onMouseEnter={handleCardHover}
+              onMouseLeave={handleCardLeave}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                     {booking.trip.route.origin}{" "}
-                    <span className="text-gray-400">&rarr;</span>{" "}
+                    <span style={{ color: "var(--awash-orange)" }}>&rarr;</span>{" "}
                     {booking.trip.route.destination}
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
                     #{booking.id.slice(0, 8)}...
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${BOOKING_STATUS_STYLES[booking.status]}`}
+                  className="rounded-full px-3 py-1 text-xs font-semibold"
+                  style={BOOKING_BADGE_STYLES[booking.status]}
                 >
                   {booking.status}
                 </span>
               </div>
 
-              <div className="mt-3 border-t border-gray-100 pt-3">
-                <p className="font-medium text-gray-900">
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid #E8E8E8" }}>
+                <p className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                   {booking.fullName}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm" style={{ color: "var(--awash-grey-dark)" }}>
                   {booking.phone}
                 </p>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
                 <span>{formatDate(booking.trip.date)}</span>
                 <span>{formatTime(booking.trip.departureTime)}</span>
-                <span className="font-medium text-gray-900">
+                <span className="font-semibold" style={{ color: "var(--awash-charcoal)" }}>
                   Seat {booking.seatNumber}
                 </span>
               </div>

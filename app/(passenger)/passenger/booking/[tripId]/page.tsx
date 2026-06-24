@@ -52,6 +52,58 @@ const MAX_SEATS = 6;
 
 const EMPTY_FORM: PassengerDetails = { fullName: "", phone: "", email: "" };
 
+// --- Shared brand styling helpers (inline styles handle the live value;
+// pseudo-states like focus/hover are wired through small event handlers) ---
+
+const orangeCardStyle: React.CSSProperties = {
+  background: "var(--awash-white)",
+  borderRadius: "12px",
+  borderLeft: "4px solid var(--awash-orange)",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+};
+
+const plainCardStyle: React.CSSProperties = {
+  background: "var(--awash-white)",
+  borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "1.5px solid #D6D6D6",
+  color: "var(--awash-black)",
+};
+
+function handleInputFocus(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.borderColor = "var(--awash-blue)";
+}
+
+function handleInputBlur(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.borderColor = "#D6D6D6";
+}
+
+function handleOrangeBtnHover(e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) {
+  e.currentTarget.style.background = "var(--awash-orange-dark)";
+}
+
+function handleOrangeBtnLeave(e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) {
+  e.currentTarget.style.background = "var(--awash-orange)";
+}
+
+const orangeButtonStyle: React.CSSProperties = {
+  background: "var(--awash-orange)",
+};
+
+// Hover on available seats: green border + light green background
+function handleSeatHover(e: React.MouseEvent<HTMLButtonElement>) {
+  e.currentTarget.style.borderColor = "var(--awash-success)";
+  e.currentTarget.style.background = "#EAF7EF";
+}
+
+function handleSeatLeave(e: React.MouseEvent<HTMLButtonElement>) {
+  e.currentTarget.style.borderColor = "#D6D6D6";
+  e.currentTarget.style.background = "var(--awash-white)";
+}
+
 function formatDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
@@ -69,6 +121,30 @@ function formatTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function Navbar() {
+  return (
+    <header
+      className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-8"
+      style={{ height: "64px", background: "var(--awash-black)" }}
+    >
+      <div className="flex items-baseline gap-2">
+        <span className="text-lg font-bold text-white">AWASH BUS</span>
+        <span className="text-sm text-white">|</span>
+        <span className="text-lg font-bold" style={{ color: "var(--awash-gold)" }}>
+          አዋሽ ባስ
+        </span>
+      </div>
+
+      <a
+        href="/passenger/dashboard"
+        className="text-sm font-medium text-white transition hover:opacity-80"
+      >
+        Back to Search
+      </a>
+    </header>
+  );
 }
 
 export default function BookingPage({
@@ -216,23 +292,39 @@ export default function BookingPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <p className="text-gray-600">Loading trip...</p>
+      <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+        <Navbar />
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+          <p style={{ color: "var(--awash-grey-dark)" }}>Loading trip...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !trip) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <div className="w-full max-w-md rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-600">{error ?? "Trip not found"}</p>
-          <button
-            onClick={fetchTrip}
-            className="mt-3 text-sm font-medium text-red-700 underline"
+      <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+        <Navbar />
+        <div className="flex min-h-[60vh] items-center justify-center px-4">
+          <div
+            className="w-full max-w-md p-6 text-center"
+            style={{
+              background: "var(--awash-orange-bg)",
+              borderRadius: "12px",
+              border: "1px solid var(--awash-error)",
+            }}
           >
-            Try again
-          </button>
+            <p className="text-sm" style={{ color: "var(--awash-error)" }}>
+              {error ?? "Trip not found"}
+            </p>
+            <button
+              onClick={fetchTrip}
+              className="mt-3 text-sm font-medium underline"
+              style={{ color: "var(--awash-error)" }}
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -242,64 +334,107 @@ export default function BookingPage({
     const totalPrice = Number(trip.price) * confirmation.length;
 
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-10">
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="rounded-xl border border-green-200 bg-green-50 p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-green-800">
-              Bookings confirmed
-            </h1>
-            <p className="mt-1 text-sm text-green-700">
-              {confirmation.length} seat
-              {confirmation.length === 1 ? "" : "s"} reserved. Save your booking
-              IDs for reference.
-            </p>
+      <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+        <Navbar />
+        <div className="px-4 py-10 sm:px-8">
+          <div className="mx-auto w-full max-w-2xl">
+            <div
+              className="p-6"
+              style={{
+                background: "var(--awash-white)",
+                borderRadius: "12px",
+                border: "2px solid var(--awash-success)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+              }}
+            >
+              <h1 className="text-2xl font-bold" style={{ color: "var(--awash-success)" }}>
+                Bookings confirmed
+              </h1>
+              <p className="mt-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
+                {confirmation.length} seat
+                {confirmation.length === 1 ? "" : "s"} reserved. Save your booking
+                IDs for reference.
+              </p>
 
-            <dl className="mt-6 space-y-3 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">Route</dt>
-                <dd className="font-medium text-gray-900">
-                  {trip.route.origin} &rarr; {trip.route.destination}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">Date</dt>
-                <dd className="font-medium text-gray-900">
-                  {formatDate(trip.date)}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">Departure</dt>
-                <dd className="font-medium text-gray-900">
-                  {formatTime(trip.departureTime)}
-                </dd>
-              </div>
-            </dl>
+              <dl className="mt-6 space-y-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt style={{ color: "var(--awash-grey-dark)" }}>Route</dt>
+                  <dd className="font-semibold" style={{ color: "var(--awash-black)" }}>
+                    {trip.route.origin} &rarr; {trip.route.destination}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt style={{ color: "var(--awash-grey-dark)" }}>Date</dt>
+                  <dd className="font-semibold" style={{ color: "var(--awash-black)" }}>
+                    {formatDate(trip.date)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt style={{ color: "var(--awash-grey-dark)" }}>Departure</dt>
+                  <dd className="font-semibold" style={{ color: "var(--awash-black)" }}>
+                    {formatTime(trip.departureTime)}
+                  </dd>
+                </div>
+              </dl>
 
-            <div className="mt-6">
-              <h2 className="mb-2 text-sm font-semibold text-gray-900">
-                Passengers
-              </h2>
-              <ul className="divide-y divide-green-200 rounded-lg border border-green-200 bg-white">
-                {confirmation.map((b) => (
-                  <li
-                    key={b.id}
-                    className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{b.fullName}</p>
-                      <p className="font-mono text-xs text-gray-500">{b.id}</p>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
-                      Seat {b.seatNumber}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              <div className="mt-6">
+                <h2 className="mb-2 text-sm font-bold" style={{ color: "var(--awash-black)" }}>
+                  Passengers
+                </h2>
+                <ul
+                  className="overflow-hidden"
+                  style={{
+                    borderRadius: "8px",
+                    border: "1px solid var(--awash-grey)",
+                    background: "var(--awash-white)",
+                  }}
+                >
+                  {confirmation.map((b) => (
+                    <li
+                      key={b.id}
+                      className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+                      style={{ borderTop: "1px solid var(--awash-grey)" }}
+                    >
+                      <div>
+                        <p className="font-semibold" style={{ color: "var(--awash-black)" }}>
+                          {b.fullName}
+                        </p>
+                        <p className="font-mono text-xs" style={{ color: "var(--awash-grey-dark)" }}>
+                          {b.id}
+                        </p>
+                      </div>
+                      <span
+                        className="shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                        style={{ background: "var(--awash-orange)" }}
+                      >
+                        Seat {b.seatNumber}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-            <div className="mt-6 flex justify-between border-t border-green-200 pt-4 text-base">
-              <span className="font-semibold text-gray-900">Total price</span>
-              <span className="font-bold text-gray-900">{totalPrice} ETB</span>
+              <div
+                className="mt-6 flex justify-between pt-4 text-base"
+                style={{ borderTop: "1px solid var(--awash-grey)" }}
+              >
+                <span className="font-semibold" style={{ color: "var(--awash-black)" }}>
+                  Total price
+                </span>
+                <span className="font-bold" style={{ color: "var(--awash-orange)" }}>
+                  {totalPrice} ETB
+                </span>
+              </div>
+
+              <a
+                href="/passenger/dashboard"
+                className="mt-6 block rounded-lg px-4 py-3 text-center text-sm font-semibold text-white transition"
+                style={orangeButtonStyle}
+                onMouseEnter={handleOrangeBtnHover}
+                onMouseLeave={handleOrangeBtnLeave}
+              >
+                Back to Dashboard
+              </a>
             </div>
           </div>
         </div>
@@ -320,242 +455,317 @@ export default function BookingPage({
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {trip.route.origin}{" "}
-            <span className="text-gray-400">&rarr;</span>{" "}
-            {trip.route.destination}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-            <span>{formatDate(trip.date)}</span>
-            <span>Departs {formatTime(trip.departureTime)}</span>
-            <span className="font-medium text-gray-900">{trip.price} ETB</span>
-          </div>
-        </header>
-
-        <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Select seats</h2>
-            <span className="text-sm text-gray-500">
-              {passengers.size}/{MAX_SEATS} selected
-            </span>
-          </div>
-
-          <div
-            className="grid gap-2"
-            style={{
-              gridTemplateColumns: `repeat(${SEATS_PER_ROW}, minmax(0, 1fr))`,
-            }}
-          >
-            {seats.map((seat) => {
-              const isBooked = bookedSeats.has(seat);
-              const isAdded = passengers.has(seat);
-              const isSelected = selectedSeat === seat;
-              const passenger = passengers.get(seat);
-
-              const firstName = passenger?.fullName.split(" ")[0] ?? "";
-
-              return (
-                <button
-                  key={seat}
-                  type="button"
-                  disabled={isBooked}
-                  onClick={() => handleSeatClick(seat)}
-                  title={passenger?.fullName}
-                  className={`flex flex-col items-center justify-center rounded-lg border px-1 py-3 text-sm font-medium transition ${
-                    isBooked
-                      ? "cursor-not-allowed border-gray-200 bg-gray-200 text-gray-400"
-                      : isAdded
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : isSelected
-                          ? "border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-200"
-                          : "border-gray-300 bg-white text-gray-900 hover:border-green-500 hover:bg-green-50"
-                  }`}
-                >
-                  <span>{seat}</span>
-                  {isAdded && (
-                    <span className="mt-0.5 max-w-full truncate text-[10px] font-normal">
-                      {firstName}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded border border-gray-300 bg-white" />
-              Available
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded bg-blue-600" />
-              Added
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded bg-gray-200" />
-              Booked
-            </span>
-          </div>
-        </section>
-
-        {selectedSeat !== null && (
-          <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
-              Passenger for seat {selectedSeat}
-            </h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label
-                  htmlFor="full-name"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Full name
-                </label>
-                <input
-                  id="full-name"
-                  type="text"
-                  required
-                  value={currentForm.fullName}
-                  onChange={(e) =>
-                    setCurrentForm((f) => ({ ...f, fullName: e.target.value }))
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                  placeholder="Abebe Bekele"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Phone number
-                </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  required
-                  value={currentForm.phone}
-                  onChange={(e) =>
-                    setCurrentForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                  placeholder="0911234567"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Email <span className="text-gray-400">(optional)</span>
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={currentForm.email}
-                  onChange={(e) =>
-                    setCurrentForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                  placeholder="abebe@example.com"
-                />
-              </div>
-            </div>
-
-            {formError && (
-              <p className="mt-4 text-sm text-red-600">{formError}</p>
-            )}
-
-            <div className="mt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={handleAddPassenger}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-              >
-                Add Passenger
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedSeat(null);
-                  setCurrentForm(EMPTY_FORM);
-                  setFormError(null);
-                }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
-        )}
-
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Summary
-          </h2>
-
-          {passengerList.length === 0 ? (
-            <p className="text-sm text-gray-600">
-              No passengers added yet. Select a seat to begin.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {passengerList.map(([seat, details]) => (
-                <li
-                  key={seat}
-                  className="flex items-center justify-between gap-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-xs font-semibold text-white">
-                      {seat}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {details.fullName}
-                      </p>
-                      <p className="text-xs text-gray-500">{details.phone}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSeatClick(seat)}
-                    className="text-sm font-medium text-red-600 transition hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {passengerList.length > 0 && (
-            <div className="mt-4 flex justify-between border-t border-gray-200 pt-4 text-sm">
-              <span className="text-gray-500">Total price</span>
-              <span className="font-semibold text-gray-900">
-                {Number(trip.price) * passengerList.length} ETB
+    <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
+      <Navbar />
+      <div className="px-4 py-10 sm:px-8">
+        <div className="mx-auto w-full max-w-2xl">
+          {/* Trip info header card */}
+          <header className="mb-6 p-6" style={orangeCardStyle}>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--awash-black)" }}>
+              {trip.route.origin}{" "}
+              <span style={{ color: "var(--awash-orange)" }}>&rarr;</span>{" "}
+              {trip.route.destination}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "var(--awash-grey-dark)" }}>
+              <span>{formatDate(trip.date)}</span>
+              <span>Departs {formatTime(trip.departureTime)}</span>
+              <span className="font-bold" style={{ color: "var(--awash-orange)" }}>
+                {trip.price} ETB
               </span>
             </div>
+          </header>
+
+          {/* Seat map */}
+          <section className="mb-8 p-6" style={plainCardStyle}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ color: "var(--awash-black)" }}>
+                Select Seats
+              </h2>
+              <span className="text-sm" style={{ color: "var(--awash-grey-dark)" }}>
+                {passengers.size}/{MAX_SEATS} selected
+              </span>
+            </div>
+
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns: `repeat(${SEATS_PER_ROW}, minmax(0, 1fr))`,
+              }}
+            >
+              {seats.map((seat) => {
+                const isBooked = bookedSeats.has(seat);
+                const isAdded = passengers.has(seat);
+                const isSelected = selectedSeat === seat;
+                const passenger = passengers.get(seat);
+
+                const firstName = passenger?.fullName.split(" ")[0] ?? "";
+
+                let seatStyle: React.CSSProperties;
+                if (isBooked) {
+                  seatStyle = {
+                    border: "1px solid #D6D6D6",
+                    background: "#D6D6D6",
+                    color: "var(--awash-grey-dark)",
+                  };
+                } else if (isAdded) {
+                  seatStyle = {
+                    border: "1px solid var(--awash-orange)",
+                    background: "var(--awash-orange)",
+                    color: "var(--awash-white)",
+                  };
+                } else if (isSelected) {
+                  seatStyle = {
+                    border: "1px solid var(--awash-orange)",
+                    background: "var(--awash-orange-bg)",
+                    color: "var(--awash-orange-dark)",
+                  };
+                } else {
+                  seatStyle = {
+                    border: "1px solid #D6D6D6",
+                    background: "var(--awash-white)",
+                    color: "var(--awash-black)",
+                  };
+                }
+
+                const isAvailable = !isBooked && !isAdded && !isSelected;
+
+                return (
+                  <button
+                    key={seat}
+                    type="button"
+                    disabled={isBooked}
+                    onClick={() => handleSeatClick(seat)}
+                    title={passenger?.fullName}
+                    onMouseEnter={isAvailable ? handleSeatHover : undefined}
+                    onMouseLeave={isAvailable ? handleSeatLeave : undefined}
+                    className={`flex flex-col items-center justify-center rounded-lg px-1 py-3 text-sm font-medium transition ${
+                      isBooked ? "cursor-not-allowed" : ""
+                    }`}
+                    style={seatStyle}
+                  >
+                    <span>{seat}</span>
+                    {isAdded && (
+                      <span className="mt-0.5 max-w-full truncate text-[10px] font-normal">
+                        {firstName}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex flex-wrap gap-4 text-xs" style={{ color: "var(--awash-grey-dark)" }}>
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded" style={{ border: "1px solid #D6D6D6", background: "var(--awash-white)" }} />
+                Available
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded" style={{ background: "var(--awash-orange)" }} />
+                Selected
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-3 w-3 rounded" style={{ background: "#D6D6D6" }} />
+                Booked
+              </span>
+            </div>
+          </section>
+
+          {/* Passenger form */}
+          {selectedSeat !== null && (
+            <section className="mb-8 p-6" style={orangeCardStyle}>
+              <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-black)" }}>
+                Passenger for seat {selectedSeat}
+              </h2>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="full-name"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
+                  >
+                    Full name
+                  </label>
+                  <input
+                    id="full-name"
+                    type="text"
+                    required
+                    value={currentForm.fullName}
+                    onChange={(e) =>
+                      setCurrentForm((f) => ({ ...f, fullName: e.target.value }))
+                    }
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full rounded-lg px-3 py-2 outline-none transition"
+                    style={inputStyle}
+                    placeholder="Abebe Bekele"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
+                  >
+                    Phone number
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    required
+                    value={currentForm.phone}
+                    onChange={(e) =>
+                      setCurrentForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full rounded-lg px-3 py-2 outline-none transition"
+                    style={inputStyle}
+                    placeholder="0911234567"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-1 block text-sm font-medium"
+                    style={{ color: "var(--awash-charcoal)" }}
+                  >
+                    Email <span style={{ color: "var(--awash-grey-dark)" }}>(optional)</span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={currentForm.email}
+                    onChange={(e) =>
+                      setCurrentForm((f) => ({ ...f, email: e.target.value }))
+                    }
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    className="w-full rounded-lg px-3 py-2 outline-none transition"
+                    style={inputStyle}
+                    placeholder="abebe@example.com"
+                  />
+                </div>
+              </div>
+
+              {formError && (
+                <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+                  {formError}
+                </p>
+              )}
+
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddPassenger}
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
+                  style={orangeButtonStyle}
+                  onMouseEnter={handleOrangeBtnHover}
+                  onMouseLeave={handleOrangeBtnLeave}
+                >
+                  Add Passenger
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSeat(null);
+                    setCurrentForm(EMPTY_FORM);
+                    setFormError(null);
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium transition"
+                  style={{
+                    background: "var(--awash-white)",
+                    border: "1.5px solid #D6D6D6",
+                    color: "var(--awash-charcoal)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </section>
           )}
 
-          {formError && selectedSeat === null && (
-            <p className="mt-4 text-sm text-red-600">{formError}</p>
-          )}
+          {/* Summary */}
+          <section className="p-6" style={orangeCardStyle}>
+            <h2 className="mb-4 text-lg font-bold" style={{ color: "var(--awash-black)" }}>
+              Summary
+            </h2>
 
-          <button
-            type="button"
-            onClick={handleConfirmAll}
-            disabled={submitting || passengers.size === 0}
-            className="mt-4 w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? "Confirming..." : "Confirm All Bookings"}
-          </button>
-        </section>
+            {passengerList.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--awash-grey-dark)" }}>
+                No passengers added yet. Select a seat to begin.
+              </p>
+            ) : (
+              <ul>
+                {passengerList.map(([seat, details], idx) => (
+                  <li
+                    key={seat}
+                    className="flex items-center justify-between gap-4 py-3"
+                    style={idx > 0 ? { borderTop: "1px solid var(--awash-grey)" } : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white"
+                        style={{ background: "var(--awash-orange)" }}
+                      >
+                        {seat}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: "var(--awash-black)" }}>
+                          {details.fullName}
+                        </p>
+                        <p className="text-xs" style={{ color: "var(--awash-grey-dark)" }}>
+                          {details.phone}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSeatClick(seat)}
+                      className="text-sm font-medium transition hover:opacity-80"
+                      style={{ color: "var(--awash-error)" }}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {passengerList.length > 0 && (
+              <div
+                className="mt-4 flex justify-between pt-4 text-sm"
+                style={{ borderTop: "1px solid var(--awash-grey)" }}
+              >
+                <span style={{ color: "var(--awash-grey-dark)" }}>Total price</span>
+                <span className="font-bold" style={{ color: "var(--awash-orange)" }}>
+                  {Number(trip.price) * passengerList.length} ETB
+                </span>
+              </div>
+            )}
+
+            {formError && selectedSeat === null && (
+              <p className="mt-4 text-sm" style={{ color: "var(--awash-error)" }}>
+                {formError}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleConfirmAll}
+              disabled={submitting || passengers.size === 0}
+              className="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+              style={orangeButtonStyle}
+              onMouseEnter={passengers.size > 0 && !submitting ? handleOrangeBtnHover : undefined}
+              onMouseLeave={passengers.size > 0 && !submitting ? handleOrangeBtnLeave : undefined}
+            >
+              {submitting ? "Confirming..." : "Confirm All Bookings"}
+            </button>
+          </section>
+        </div>
       </div>
     </div>
   );

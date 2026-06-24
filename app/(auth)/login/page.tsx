@@ -55,18 +55,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+    <div
+      className="flex min-h-screen items-center justify-center px-4 py-12"
+      style={{ background: "var(--awash-black)" }}
+    >
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Awash Bus</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-3xl font-bold">
+            <span style={{ color: "var(--awash-white)" }}>AWASH BUS | </span>
+            <span style={{ color: "var(--awash-gold)" }}>አዋሽ ባስ</span>
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--awash-grey-medium)" }}>
             Sign in to your account
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 rounded-xl border border-gray-200 bg-white p-8 shadow-sm"
+          className="space-y-5 p-8"
+          style={{
+            background: "var(--awash-white)",
+            borderRadius: "12px",
+            boxShadow:
+              "0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 10px 10px -5px rgba(0, 0, 0, 0.2)",
+            borderLeft: "4px solid var(--awash-orange)",
+          }}
         >
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -77,7 +90,8 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Email
             </label>
@@ -88,7 +102,19 @@ export default function LoginPage() {
               required
               value={form.email}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full px-3 py-2 focus:outline-none"
+              style={{
+                border: "1.5px solid var(--awash-grey-medium)",
+                borderRadius: "8px",
+                color: "var(--awash-charcoal)",
+              }}
+              onFocus={(e) =>
+                (e.currentTarget.style.border = "1.5px solid var(--awash-blue)")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.border =
+                  "1.5px solid var(--awash-grey-medium)")
+              }
               placeholder="you@example.com"
             />
           </div>
@@ -96,7 +122,8 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium"
+              style={{ color: "var(--awash-charcoal)" }}
             >
               Password
             </label>
@@ -107,7 +134,19 @@ export default function LoginPage() {
               required
               value={form.password}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full px-3 py-2 focus:outline-none"
+              style={{
+                border: "1.5px solid var(--awash-grey-medium)",
+                borderRadius: "8px",
+                color: "var(--awash-charcoal)",
+              }}
+              onFocus={(e) =>
+                (e.currentTarget.style.border = "1.5px solid var(--awash-blue)")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.border =
+                  "1.5px solid var(--awash-grey-medium)")
+              }
               placeholder="••••••••"
             />
           </div>
@@ -115,16 +154,29 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center text-sm font-semibold transition focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              background: "var(--awash-orange)",
+              color: "var(--awash-white)",
+              borderRadius: "8px",
+              padding: "12px",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = "var(--awash-orange-dark)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "var(--awash-orange)")
+            }
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm" style={{ color: "var(--awash-grey-dark)" }}>
             New to Awash Bus?{" "}
             <a
               href="/register"
-              className="font-medium text-blue-600 hover:text-blue-700"
+              className="font-medium"
+              style={{ color: "var(--awash-orange)" }}
             >
               Create an account
             </a>
