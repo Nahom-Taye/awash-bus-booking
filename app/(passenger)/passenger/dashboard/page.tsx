@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 
@@ -116,6 +117,32 @@ export default function PassengerDashboardPage() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const originParam = searchParams.get("origin");
+    const destinationParam = searchParams.get("destination");
+    const dateParam = searchParams.get("date");
+
+    if (originParam && destinationParam && dateParam) {
+      setOrigin(originParam);
+      setDestination(destinationParam);
+      setDate(dateParam);
+      setActiveTab("search");
+      setLoading(true);
+      const params = new URLSearchParams({
+        origin: originParam,
+        destination: destinationParam,
+        date: dateParam,
+      });
+      fetch(`/api/trips/search?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data) => setTrips(data))
+        .catch(() => setError("Failed to search trips"))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -43,7 +43,15 @@ export default function LoginPage() {
       if (role === "OPERATOR") {
         router.push("/operator/dashboard");
       } else if (role === "PASSENGER") {
-        router.push("/passenger/dashboard");
+        const saved = sessionStorage.getItem("awash_search");
+        if (saved) {
+          const { origin, destination, date } = JSON.parse(saved);
+          sessionStorage.removeItem("awash_search");
+          const query = new URLSearchParams({ origin, destination, date });
+          router.push(`/passenger/dashboard?${query.toString()}`);
+        } else {
+          router.push("/passenger/dashboard");
+        }
       } else {
         router.push("/");
       }
@@ -173,8 +181,8 @@ export default function LoginPage() {
 
           <p className="text-center text-sm" style={{ color: "var(--awash-grey-dark)" }}>
             New to Awash Bus?{" "}
-            <a
-              href="/register"
+            
+              <a href="/register"
               className="font-medium"
               style={{ color: "var(--awash-orange)" }}
             >

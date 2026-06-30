@@ -1,16 +1,5 @@
 import Link from "next/link";
-
-const CITIES = [
-  "Addis Ababa",
-  "Hawassa",
-  "Gondar",
-  "Dessie",
-  "Dire Dawa",
-  "Arba Minch",
-  "Dilla",
-  "Bule Hora",
-  "Yirga Cheffe",
-];
+import SearchWidget from "@/app/components/SearchWidget";
 
 const FEATURES = [
   {
@@ -79,79 +68,7 @@ export default function Home() {
             Book your seat online – Addis Ababa to 15+ destinations
           </p>
 
-          {/* BOOKING SEARCH WIDGET */}
-          <form
-            action="/passenger/dashboard"
-            className="mx-auto mt-10 w-full max-w-3xl rounded-xl bg-awash-white p-6 text-left shadow-2xl"
-          >
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="flex flex-col">
-                <label
-                  htmlFor="from"
-                  className="mb-1 text-sm font-medium text-awash-charcoal"
-                >
-                  From
-                </label>
-                <select
-                  id="from"
-                  name="origin"
-                  defaultValue="Addis Ababa"
-                  className="rounded-lg border border-awash-grey-medium px-3 py-2 text-awash-black focus:border-awash-orange focus:outline-none focus:ring-1 focus:ring-awash-orange"
-                >
-                  {CITIES.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <label
-                  htmlFor="to"
-                  className="mb-1 text-sm font-medium text-awash-charcoal"
-                >
-                  To
-                </label>
-                <select
-                  id="to"
-                  name="destination"
-                  defaultValue="Hawassa"
-                  className="rounded-lg border border-awash-grey-medium px-3 py-2 text-awash-black focus:border-awash-orange focus:outline-none focus:ring-1 focus:ring-awash-orange"
-                >
-                  {CITIES.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <label
-                  htmlFor="date"
-                  className="mb-1 text-sm font-medium text-awash-charcoal"
-                >
-                  Date
-                </label>
-                <input
-                  id="date"
-                  name="date"
-                  type="date"
-                  className="rounded-lg border border-awash-grey-medium px-3 py-2 text-awash-black focus:border-awash-orange focus:outline-none focus:ring-1 focus:ring-awash-orange"
-                />
-              </div>
-
-              <div className="flex flex-col justify-end">
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-awash-orange px-4 py-2 text-sm font-semibold text-white transition hover:bg-awash-orange-dark"
-                >
-                  Search Buses
-                </button>
-              </div>
-            </div>
-          </form>
+          <SearchWidget />
         </div>
 
         {/* Diagonal white shape at bottom of hero */}
