@@ -1,5 +1,7 @@
 import Link from "next/link";
 import SearchWidget from "@/app/components/SearchWidget";
+import FAQSection from "@/app/components/FAQSection";
+import ContactSection from "@/app/components/ContactSection";
 
 const FEATURES = [
   {
@@ -110,6 +112,10 @@ export default function Home() {
         </div>
       </section>
 
+      <FAQSection />
+
+      <ContactSection />
+
       {/* FOOTER */}
       <footer className="border-t-4 border-awash-orange bg-awash-black">
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
@@ -148,7 +154,7 @@ export default function Home() {
                 </li>
                 <li>
                   <Link
-                    href="/contact"
+                    href="#contact"
                     className="text-awash-grey-medium transition hover:text-white"
                   >
                     Contact

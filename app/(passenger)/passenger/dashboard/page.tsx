@@ -1,9 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import SessionWarningModal from "@/app/components/SessionWarningModal";
+import { useIdleTimer } from "@/app/hooks/useIdleTimer";
+
+const WARNING_TIMEOUT = 120_000;
+const LOGOUT_TIMEOUT = 180_000;
 
 interface Route {
   id: string;
@@ -107,8 +118,26 @@ function handleInputBlur(e: React.FocusEvent<HTMLInputElement>) {
 }
 
 export default function PassengerDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-awash-grey-light text-awash-grey-dark">
+          Loading dashboard...
+        </div>
+      }
+    >
+      <PassengerDashboardContent />
+    </Suspense>
+  );
+}
+
+function PassengerDashboardContent() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("search");
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [sessionCountdown, setSessionCountdown] = useState(
+    LOGOUT_TIMEOUT / 1_000,
+  );
 
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -119,6 +148,36 @@ export default function PassengerDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
+
+  const handleSessionLogout = useCallback(() => {
+    void signOut({ callbackUrl: "/" });
+  }, []);
+
+  const { resetTimer } = useIdleTimer({
+    warningTimeout: WARNING_TIMEOUT,
+    logoutTimeout: LOGOUT_TIMEOUT,
+    onWarning: () => {
+      setSessionCountdown(LOGOUT_TIMEOUT / 1_000);
+      setShowSessionWarning(true);
+    },
+    onLogout: handleSessionLogout,
+  });
+
+  useEffect(() => {
+    if (!showSessionWarning) return;
+
+    const countdownInterval = setInterval(() => {
+      setSessionCountdown((current) => Math.max(0, current - 1));
+    }, 1_000);
+
+    return () => clearInterval(countdownInterval);
+  }, [showSessionWarning]);
+
+  const handleStayLoggedIn = () => {
+    setShowSessionWarning(false);
+    setSessionCountdown(LOGOUT_TIMEOUT / 1_000);
+    resetTimer();
+  };
 
   useEffect(() => {
     const originParam = searchParams.get("origin");
@@ -491,6 +550,13 @@ export default function PassengerDashboardPage() {
 
         {activeTab === "bookings" && <MyBookingsTab />}
       </div>
+
+      <SessionWarningModal
+        isVisible={showSessionWarning}
+        countdown={sessionCountdown}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogOut={handleSessionLogout}
+      />
     </div>
   );
 }

@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useSession, signOut } from "next-auth/react";
+import SessionWarningModal from "@/app/components/SessionWarningModal";
+import { useIdleTimer } from "@/app/hooks/useIdleTimer";
+
+const WARNING_TIMEOUT = 120_000;
+const LOGOUT_TIMEOUT = 180_000;
 
 interface Route {
   id: string;
@@ -104,6 +109,40 @@ function handleCardLeave(e: React.MouseEvent<HTMLLIElement>) {
 export default function OperatorDashboardPage() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("routes");
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [sessionCountdown, setSessionCountdown] = useState(
+    LOGOUT_TIMEOUT / 1_000,
+  );
+
+  const handleSessionLogout = useCallback(() => {
+    void signOut({ callbackUrl: "/" });
+  }, []);
+
+  const { resetTimer } = useIdleTimer({
+    warningTimeout: WARNING_TIMEOUT,
+    logoutTimeout: LOGOUT_TIMEOUT,
+    onWarning: () => {
+      setSessionCountdown(LOGOUT_TIMEOUT / 1_000);
+      setShowSessionWarning(true);
+    },
+    onLogout: handleSessionLogout,
+  });
+
+  useEffect(() => {
+    if (!showSessionWarning) return;
+
+    const countdownInterval = setInterval(() => {
+      setSessionCountdown((current) => Math.max(0, current - 1));
+    }, 1_000);
+
+    return () => clearInterval(countdownInterval);
+  }, [showSessionWarning]);
+
+  const handleStayLoggedIn = () => {
+    setShowSessionWarning(false);
+    setSessionCountdown(LOGOUT_TIMEOUT / 1_000);
+    resetTimer();
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "var(--awash-grey-light)" }}>
@@ -175,6 +214,13 @@ export default function OperatorDashboardPage() {
           {activeTab === "bookings" && <BookingsTab />}
         </div>
       </main>
+
+      <SessionWarningModal
+        isVisible={showSessionWarning}
+        countdown={sessionCountdown}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogOut={handleSessionLogout}
+      />
     </div>
   );
 }
