@@ -1,60 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  /* Primary - Awash Orange */
-  --awash-orange: #E85420;
-  --awash-orange-dark: #D44325;
-  --awash-orange-light: #F26522;
-  --awash-orange-bg: #FFF3ED;
-
-  /* Secondary - Royal Blue */
-  --awash-blue: #1E3FA0;
-  --awash-blue-light: #3A7BD5;
-  --awash-sky-blue: #5DADE2;
-  --awash-blue-bg: #EBF0FA;
-
-  /* Accent */
-  --awash-gold: #F5C518;
-  --awash-yellow: #FFD700;
-
-  /* Neutrals */
-  --awash-white: #FFFFFF;
-  --awash-grey-light: #F5F5F5;
-  --awash-grey: #E8E8E8;
-  --awash-grey-medium: #D6D6D6;
-  --awash-grey-dark: #6B6B6B;
-  --awash-charcoal: #2D2D2D;
-  --awash-black: #1A1A1A;
-
-  /* Semantic */
-  --awash-success: #27AE60;
-  --awash-error: #C0392B;
-  --awash-warning: #F39C12;
-  --awash-info: #3A7BD5;
-
-  /* Text */
-  --text-primary: #1A1A1A;
-  --text-secondary: #6B6B6B;
-  --text-on-orange: #FFFFFF;
-  --text-on-dark: #F5F5F5;
-  --text-link: #1E3FA0;
-
-  --background: #ffffff;
-  --foreground: #1A1A1A;
+  --awash-orange: #e45724;
+  --awash-orange-dark: #bd3f17;
+  --awash-orange-light: #f47a42;
+  --awash-orange-bg: #fff4ee;
+  --awash-gold: #c99524;
+  --awash-blue: #2457a6;
+  --awash-blue-bg: #edf4ff;
+  --awash-white: #ffffff;
+  --awash-grey-light: #f7f6f3;
+  --awash-grey: #e7e5e1;
+  --awash-grey-medium: #d4d0c9;
+  --awash-grey-dark: #68645e;
+  --awash-charcoal: #34312d;
+  --awash-black: #211f1c;
+  --awash-success: #247a4a;
+  --awash-error: #b43b34;
+  --awash-warning: #a66512;
+  --background: #faf9f7;
+  --foreground: #211f1c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
-  /* Expose Awash colors as Tailwind utilities */
   --color-awash-orange: var(--awash-orange);
   --color-awash-orange-dark: var(--awash-orange-dark);
   --color-awash-orange-light: var(--awash-orange-light);
   --color-awash-orange-bg: var(--awash-orange-bg);
   --color-awash-blue: var(--awash-blue);
-  --color-awash-blue-light: var(--awash-blue-light);
-  --color-awash-sky-blue: var(--awash-sky-blue);
   --color-awash-blue-bg: var(--awash-blue-bg);
   --color-awash-gold: var(--awash-gold);
   --color-awash-charcoal: var(--awash-charcoal);
@@ -66,12 +41,117 @@
   --color-awash-success: var(--awash-success);
   --color-awash-error: var(--awash-error);
   --color-awash-warning: var(--awash-warning);
+  --font-sans: var(--font-english), Arial, Helvetica, sans-serif;
+  --font-ethiopic: var(--font-amharic), "Noto Sans Ethiopic", Arial, sans-serif;
+}
 
-  --font-sans: Arial, Helvetica, sans-serif;
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
-  color: var(--text-primary);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  font-family: var(--font-english), Arial, Helvetica, sans-serif;
+  line-height: 1.6;
+}
+
+html[lang="am"] body,
+html[lang="am"] button,
+html[lang="am"] input,
+html[lang="am"] select,
+html[lang="am"] textarea {
+  font-family:
+    var(--font-amharic), "Noto Sans Ethiopic", var(--font-english), Arial,
+    sans-serif;
+  letter-spacing: normal;
+}
+
+html[lang="am"] body {
+  line-height: 1.75;
+}
+
+html[lang="am"] h1,
+html[lang="am"] h2,
+html[lang="am"] h3 {
+  line-height: 1.45;
+}
+
+html[lang="am"] .awash-section-label {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: #fed7c4;
+  color: var(--awash-black);
+}
+
+@layer components {
+  .awash-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .awash-card {
+    @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+  }
+
+  .awash-input {
+    @apply mt-2 min-h-12 w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-awash-orange focus:ring-3 focus:ring-orange-100;
+  }
+
+  .awash-label {
+    @apply block text-sm font-semibold text-stone-700;
+  }
+
+  .awash-primary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-awash-orange px-5 py-2.5 text-sm font-bold text-white transition hover:bg-awash-orange-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-awash-orange focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .awash-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-awash-orange focus-visible:ring-offset-2;
+  }
+
+  .awash-section-label {
+    @apply text-xs font-extrabold uppercase tracking-[0.18em] text-awash-orange;
+  }
+
+  .awash-alert-error {
+    @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800;
+  }
+
+  .awash-alert-success {
+    @apply rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

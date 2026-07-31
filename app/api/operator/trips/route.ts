@@ -1,55 +1,86 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { TripStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requireRole } from "@/lib/authorization";
+import {
+  reconcileLifecycle,
+  tripDeletionEligibility,
+} from "@/lib/lifecycle";
+import {
+  isDateOnly,
+  isTimeOnly,
+  readJsonObject,
+} from "@/lib/validation";
 
-interface CreateTripBody {
-  routeId?: string;
-  busId?: string;
-  date?: string;
-  departureTime?: string;
-  arrivalTime?: string;
-  price?: number;
-}
+const TRIP_VIEWS = [
+  "active",
+  "completed",
+  "cancelled",
+  "archived",
+  "all",
+] as const;
 
-export async function GET() {
-  const session = await auth();
+export async function GET(request: Request) {
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  await reconcileLifecycle({ operatorId: authorization.user.id });
+  const rawView = new URL(request.url).searchParams.get("view") ?? "active";
+  const view = TRIP_VIEWS.includes(rawView as (typeof TRIP_VIEWS)[number])
+    ? (rawView as (typeof TRIP_VIEWS)[number])
+    : "active";
+  const status: TripStatus | undefined =
+    view === "active"
+      ? "SCHEDULED"
+      : view === "all"
+        ? undefined
+        : view === "completed"
+          ? "COMPLETED"
+          : view === "cancelled"
+            ? "CANCELLED"
+            : "ARCHIVED";
 
   const trips = await prisma.trip.findMany({
-    where: { operatorId: session.user.id },
-    include: { route: true, bus: true },
+    where: {
+      operatorId: authorization.user.id,
+      ...(status ? { status } : {}),
+    },
+    include: {
+      route: true,
+      bus: true,
+      _count: { select: { bookings: true } },
+      bookings: {
+        select: {
+          status: true,
+          payments: { select: { status: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(trips, { status: 200 });
+  return NextResponse.json(
+    trips.map(({ bookings, ...trip }) => ({
+      ...trip,
+      lifecycle: tripDeletionEligibility(trip.status, bookings),
+    })),
+    { status: 200 },
+  );
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const {
-    routeId,
-    busId,
-    date,
-    departureTime,
-    arrivalTime,
-    price,
-  }: CreateTripBody = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
+  const routeId = typeof body?.routeId === "string" ? body.routeId : "";
+  const busId = typeof body?.busId === "string" ? body.busId : "";
+  const date = typeof body?.date === "string" ? body.date : "";
+  const departureTime =
+    typeof body?.departureTime === "string" ? body.departureTime : "";
+  const arrivalTime =
+    typeof body?.arrivalTime === "string" ? body.arrivalTime : "";
+  const price = body?.price;
 
   if (
     !routeId?.trim() ||
@@ -60,8 +91,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error:
-          "routeId, busId, date, departureTime, and arrivalTime are required",
+        error: "TRIP_FIELDS_REQUIRED",
       },
       { status: 400 }
     );
@@ -69,39 +99,47 @@ export async function POST(request: Request) {
 
   if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
     return NextResponse.json(
-      { error: "price must be a positive number" },
+      { error: "INVALID_PRICE" },
       { status: 400 }
     );
   }
-
-  const parsedDate = new Date(date);
-  const parsedDeparture = new Date(departureTime);
-  const parsedArrival = new Date(arrivalTime);
 
   if (
-    Number.isNaN(parsedDate.getTime()) ||
-    Number.isNaN(parsedDeparture.getTime()) ||
-    Number.isNaN(parsedArrival.getTime())
+    !isDateOnly(date) ||
+    !isTimeOnly(departureTime) ||
+    !isTimeOnly(arrivalTime)
   ) {
     return NextResponse.json(
-      { error: "date, departureTime, and arrivalTime must be valid dates" },
-      { status: 400 }
+      { error: "INVALID_DATE_TIME" },
+      { status: 400 },
     );
   }
-if (parsedArrival <= parsedDeparture) {
-  return NextResponse.json(
-     { error: "Arrival time must be after departure time" },
-     { status: 400 }
-     );
+
+  const parsedDate = new Date(`${date}T00:00:00.000Z`);
+  const parsedDeparture = new Date(`${date}T${departureTime}:00.000Z`);
+  const parsedArrival = new Date(`${date}T${arrivalTime}:00.000Z`);
+
+  if (parsedArrival <= parsedDeparture) {
+    return NextResponse.json(
+      { error: "ARRIVAL_BEFORE_DEPARTURE" },
+      { status: 400 },
+    );
   }
+
   const route = await prisma.route.findUnique({
     where: { id: routeId },
   });
 
-  if (!route || route.operatorId !== session.user.id) {
+  if (!route || route.operatorId !== authorization.user.id) {
     return NextResponse.json(
-      { error: "Route does not belong to this operator" },
+      { error: "ROUTE_FORBIDDEN" },
       { status: 403 }
+    );
+  }
+  if (!route.isActive) {
+    return NextResponse.json(
+      { error: "ROUTE_ARCHIVED" },
+      { status: 409 },
     );
   }
 
@@ -109,10 +147,16 @@ if (parsedArrival <= parsedDeparture) {
     where: { id: busId },
   });
 
-  if (!bus || bus.operatorId !== session.user.id) {
+  if (!bus || bus.operatorId !== authorization.user.id) {
     return NextResponse.json(
-      { error: "Bus does not belong to this operator" },
+      { error: "BUS_FORBIDDEN" },
       { status: 403 }
+    );
+  }
+  if (!bus.isActive) {
+    return NextResponse.json(
+      { error: "BUS_ARCHIVED" },
+      { status: 409 },
     );
   }
 
@@ -124,10 +168,20 @@ if (parsedArrival <= parsedDeparture) {
       price,
       routeId,
       busId,
-      operatorId: session.user.id,
+      operatorId: authorization.user.id,
     },
-    include: { route: true, bus: true },
+    include: {
+      route: true,
+      bus: true,
+      _count: { select: { bookings: true } },
+    },
   });
 
-  return NextResponse.json(trip, { status: 201 });
+  return NextResponse.json(
+    {
+      ...trip,
+      lifecycle: tripDeletionEligibility(trip.status, []),
+    },
+    { status: 201 },
+  );
 }

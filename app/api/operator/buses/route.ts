@@ -1,49 +1,64 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-
-interface CreateBusBody {
-  plateNumber?: string;
-  totalSeats?: number;
-}
+import { requireRole } from "@/lib/authorization";
+import { readJsonObject } from "@/lib/validation";
+import { ethiopiaWallClockAsUtc } from "@/lib/lifecycle";
 
 export async function GET() {
-  const session = await auth();
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  const now = ethiopiaWallClockAsUtc();
   const buses = await prisma.bus.findMany({
-    where: { operatorId: session.user.id },
+    where: { operatorId: authorization.user.id },
+    include: {
+      _count: { select: { trips: true } },
+      trips: {
+        where: {
+          status: "SCHEDULED",
+          departureTime: { gt: now },
+        },
+        select: {
+          id: true,
+          date: true,
+          departureTime: true,
+          route: {
+            select: {
+              origin: true,
+              destination: true,
+              originEn: true,
+              originAm: true,
+              destinationEn: true,
+              destinationAm: true,
+            },
+          },
+        },
+        orderBy: { departureTime: "asc" },
+        take: 5,
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(buses, { status: 200 });
+  return NextResponse.json(
+    buses.map(({ trips, ...bus }) => ({ ...bus, upcomingTrips: trips })),
+    { status: 200 },
+  );
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { plateNumber, totalSeats }: CreateBusBody = await request
-    .json()
-    .catch(() => ({}));
+  const body = await readJsonObject(request);
+  const plateNumber =
+    typeof body?.plateNumber === "string" ? body.plateNumber : "";
+  const totalSeats = body?.totalSeats;
 
   if (!plateNumber?.trim()) {
     return NextResponse.json(
-      { error: "plateNumber is required" },
+      { error: "PLATE_REQUIRED" },
       { status: 400 }
     );
   }
@@ -55,12 +70,12 @@ export async function POST(request: Request) {
     totalSeats > 48
   ) {
     return NextResponse.json(
-      { error: "totalSeats must be a positive integer not greater than 48" },
+      { error: "INVALID_SEAT_COUNT" },
       { status: 400 }
     );
   }
 
-  const trimmedPlateNumber = plateNumber.trim();
+  const trimmedPlateNumber = plateNumber.trim().toUpperCase();
 
   const existing = await prisma.bus.findUnique({
     where: { plateNumber: trimmedPlateNumber },
@@ -68,18 +83,35 @@ export async function POST(request: Request) {
 
   if (existing) {
     return NextResponse.json(
-      { error: "A bus with this plate number already exists" },
+      { error: "PLATE_EXISTS" },
       { status: 409 }
     );
   }
 
-  const bus = await prisma.bus.create({
-    data: {
-      plateNumber: trimmedPlateNumber,
-      totalSeats,
-      operatorId: session.user.id,
-    },
-  });
+  try {
+    const bus = await prisma.bus.create({
+      data: {
+        plateNumber: trimmedPlateNumber,
+        totalSeats,
+        operatorId: authorization.user.id,
+      },
+      include: { _count: { select: { trips: true } } },
+    });
 
-  return NextResponse.json(bus, { status: 201 });
+    return NextResponse.json(
+      { ...bus, upcomingTrips: [] },
+      { status: 201 },
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "PLATE_EXISTS" },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 }

@@ -1,37 +1,83 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requireRole } from "@/lib/authorization";
+import { reconcileLifecycle } from "@/lib/lifecycle";
 
-export async function GET() {
-  const session = await auth();
+export async function GET(request: Request) {
+  const authorization = await requireRole("PASSENGER");
+  if (authorization.response) return authorization.response;
+  await reconcileLifecycle({
+    passengerId: authorization.user.id,
+  });
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "PASSENGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const view = new URL(request.url).searchParams.get("view") ?? "active";
+  const lifecycleWhere: Prisma.BookingWhereInput =
+    view === "all"
+      ? {}
+      : view === "history"
+        ? {
+            OR: [
+              { status: { in: ["EXPIRED", "CANCELLED"] } },
+              {
+                trip: {
+                  status: {
+                    in: ["COMPLETED", "CANCELLED", "ARCHIVED"],
+                  },
+                },
+              },
+            ],
+          }
+        : {
+            status: { in: ["PENDING", "CONFIRMED"] },
+            trip: { status: "SCHEDULED" },
+          };
 
   const bookings = await prisma.booking.findMany({
-    where: { passengerId: session.user.id },
+    where: {
+      passengerId: authorization.user.id,
+      ...lifecycleWhere,
+    },
     select: {
       id: true,
       seatNumber: true,
       fullName: true,
       phone: true,
+      email: true,
       status: true,
+      holdExpiresAt: true,
+      expiredAt: true,
       createdAt: true,
+      payments: {
+        select: {
+          id: true,
+          method: true,
+          amount: true,
+          currency: true,
+          transactionReference: true,
+          status: true,
+          rejectionReason: true,
+          verifiedAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
       trip: {
         select: {
+          id: true,
           date: true,
           departureTime: true,
           arrivalTime: true,
           price: true,
+          status: true,
           route: {
             select: {
               origin: true,
               destination: true,
+              originEn: true,
+              originAm: true,
+              destinationEn: true,
+              destinationAm: true,
             },
           },
           bus: {

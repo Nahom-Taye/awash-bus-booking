@@ -1,32 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-
-interface RegisterBody {
-  fullName?: string;
-  email?: string;
-  phone?: string;
-  password?: string;
-}
+import {
+  isEmail,
+  normalizeEmail,
+  readJsonObject,
+} from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { fullName, email, phone, password }: RegisterBody =
-      await request.json();
+    const body = await readJsonObject(request);
+
+    if (!body) {
+      return NextResponse.json(
+        { error: "INVALID_REGISTRATION_REQUEST" },
+        { status: 400 },
+      );
+    }
+
+    const fullName =
+      typeof body.fullName === "string" ? body.fullName.trim() : "";
+    const email =
+      typeof body.email === "string" ? normalizeEmail(body.email) : "";
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+
+    if ("role" in body) {
+      return NextResponse.json(
+        { error: "ROLE_NOT_ALLOWED" },
+        { status: 400 },
+      );
+    }
 
     if (!fullName || !email || !phone || !password) {
       return NextResponse.json(
-        { error: "fullName, email, phone and password are required" },
+        { error: "REQUIRED_REGISTRATION_FIELDS" },
         { status: 400 }
       );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-
-    if (existingUser) {
+    if (fullName.length > 120 || phone.length > 40) {
       return NextResponse.json(
-        { error: "A user with this email already exists" },
-        { status: 409 }
+        { error: "PROFILE_FIELD_TOO_LONG" },
+        { status: 400 },
+      );
+    }
+
+    if (!isEmail(email) || email.length > 254) {
+      return NextResponse.json(
+        { error: "INVALID_EMAIL" },
+        { status: 400 },
+      );
+    }
+
+    if (password.length < 8 || password.length > 72) {
+      return NextResponse.json(
+        { error: "INVALID_PASSWORD_LENGTH" },
+        { status: 400 },
       );
     }
 
@@ -48,13 +79,44 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { id: user.id, email: user.email },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "EMAIL_EXISTS" },
+        { status: 409 },
+      );
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientInitializationError ||
+      (error instanceof Prisma.PrismaClientKnownRequestError &&
+        ["P1000", "P1001", "P1002", "P1003", "P1017"].includes(error.code))
+    ) {
+      console.error("Registration database error:", error);
+      return NextResponse.json(
+        {
+          error: "REGISTRATION_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: "INVALID_REGISTRATION_REQUEST" },
+        { status: 400 },
+      );
+    }
+
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+      { error: "UNEXPECTED_ERROR" },
+      { status: 500 },
     );
   }
 }

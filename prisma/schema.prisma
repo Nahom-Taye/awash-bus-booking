@@ -1,8 +1,7 @@
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -18,12 +17,33 @@ enum TripStatus {
   SCHEDULED
   CANCELLED
   COMPLETED
+  ARCHIVED
 }
 
 enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  TELEBIRR
+  CBE
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+  REFUNDED
+}
+
+enum ContactMessageStatus {
+  NEW
+  READ
+  RESOLVED
 }
 
 model User {
@@ -36,36 +56,53 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  routes   Route[]
-  buses    Bus[]
-  trips    Trip[]
-  bookings Booking[]
+  routes           Route[]
+  buses            Bus[]
+  trips            Trip[]
+  bookings         Booking[]
+  contactMessages  ContactMessage[]
+  payments         Payment[]        @relation("PaymentPassenger")
+  verifiedPayments Payment[]        @relation("PaymentVerifier")
+  paymentSettings  OperatorPaymentSettings?
 }
 
 model Route {
-  id          String   @id @default(uuid())
-  origin      String
-  destination String
-  operatorId  String
-  operator    User     @relation(fields: [operatorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String    @id @default(uuid())
+  origin         String
+  destination    String
+  originKey      String
+  destinationKey String
+  originEn       String?
+  originAm       String?
+  destinationEn  String?
+  destinationAm  String?
+  isActive       Boolean   @default(true)
+  archivedAt     DateTime?
+  operatorId     String
+  operator       User      @relation(fields: [operatorId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   trips Trip[]
 
-  @@unique([operatorId, origin, destination])
+  @@unique([operatorId, originKey, destinationKey])
+  @@index([operatorId, isActive])
 }
 
 model Bus {
-  id          String   @id @default(uuid())
-  plateNumber String   @unique
+  id          String    @id @default(uuid())
+  plateNumber String    @unique
   totalSeats  Int
+  isActive    Boolean   @default(true)
+  archivedAt  DateTime?
   operatorId  String
-  operator    User     @relation(fields: [operatorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  operator    User      @relation(fields: [operatorId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   trips Trip[]
+
+  @@index([operatorId, isActive])
 }
 
 model Trip {
@@ -75,6 +112,7 @@ model Trip {
   arrivalTime   DateTime
   price         Decimal
   status        TripStatus @default(SCHEDULED)
+  archivedAt    DateTime?
   routeId       String
   route         Route      @relation(fields: [routeId], references: [id])
   busId         String
@@ -88,16 +126,87 @@ model Trip {
 }
 
 model Booking {
-  id          String        @id @default(uuid())
-  seatNumber  Int
+  id            String        @id @default(uuid())
+  seatNumber    Int
+  seatKey       String?       @unique
+  fullName      String
+  phone         String
+  email         String?
+  status        BookingStatus @default(PENDING)
+  holdExpiresAt DateTime?
+  expiredAt     DateTime?
+  tripId        String
+  trip          Trip          @relation(fields: [tripId], references: [id])
+  passengerId   String
+  passenger     User          @relation(fields: [passengerId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  payments Payment[]
+
+  @@index([tripId, status])
+  @@index([passengerId, createdAt])
+  @@index([status, holdExpiresAt])
+  @@index([status, expiredAt])
+}
+
+model Payment {
+  id                      String        @id @default(uuid())
+  bookingId               String
+  booking                 Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  passengerId             String
+  passenger               User          @relation("PaymentPassenger", fields: [passengerId], references: [id], onDelete: Restrict)
+  method                  PaymentMethod
+  amount                  Decimal       @db.Decimal(12, 2)
+  currency                String        @default("ETB") @db.VarChar(3)
+  transactionReference    String
+  transactionReferenceKey String        @unique
+  senderName              String
+  senderIdentifier        String
+  status                  PaymentStatus @default(PENDING)
+  rejectionReason         String?
+  verifiedById            String?
+  verifiedBy              User?         @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: Restrict)
+  verifiedAt              DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([bookingId, createdAt])
+  @@index([passengerId, createdAt])
+  @@index([status, createdAt])
+  @@index([verifiedById])
+}
+
+model OperatorPaymentSettings {
+  id                     String   @id @default(uuid())
+  operatorId             String   @unique
+  operator               User     @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  telebirrEnabled        Boolean  @default(false)
+  telebirrRecipientName  String?
+  telebirrMerchantNumber String?
+  cbeEnabled             Boolean  @default(false)
+  cbeAccountHolderName   String?
+  cbeAccountNumber       String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ContactMessage {
+  id          String               @id @default(uuid())
+  passengerId String?
+  passenger   User?                @relation(fields: [passengerId], references: [id], onDelete: SetNull)
   fullName    String
-  phone       String
-  status      BookingStatus @default(PENDING)
-  tripId      String
-  trip        Trip          @relation(fields: [tripId], references: [id])
-  passengerId String
-  passenger   User          @relation(fields: [passengerId], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  @@unique([tripId, seatNumber])
+  email       String
+  phone       String?
+  subject     String?
+  message     String
+  status      ContactMessageStatus @default(NEW)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  readAt      DateTime?
+  resolvedAt  DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([passengerId])
 }

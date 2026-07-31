@@ -7,6 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:journey": "node --no-warnings --experimental-strip-types --test scripts/journey-flow.test.ts",
+    "test:lifecycle": "node --no-warnings --experimental-strip-types --test scripts/lifecycle.test.ts",
+    "verify:db": "node --env-file=.env scripts/verify-database.mjs",
+    "verify:features": "node --env-file=.env scripts/verify-features.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -14,6 +19,7 @@
     "bcryptjs": "^3.0.3",
     "next": "16.2.9",
     "next-auth": "^5.0.0-beta.31",
+    "next-intl": "^4.13.4",
     "prisma": "^5.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"

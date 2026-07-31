@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { requireRole } from "@/lib/authorization";
+import { resolveOperatorPaymentConfiguration } from "@/lib/payment-config";
+import {
+  createSeatKey,
+  PAYMENT_WINDOW_MS,
+} from "@/lib/payments";
+import {
+  ethiopiaWallClockAsUtc,
+  reconcileLifecycleInTransaction,
+} from "@/lib/lifecycle";
+import {
+  isEmail,
+  normalizeEmail,
+  readJsonObject,
+} from "@/lib/validation";
 
 interface PassengerInput {
   seatNumber?: number;
@@ -10,147 +24,226 @@ interface PassengerInput {
   email?: string;
 }
 
-interface CreateBookingBody {
-  tripId?: string;
-  passengers?: PassengerInput[];
-}
-
 const MAX_PASSENGERS = 6;
 
-// Thrown inside the transaction to abort and roll back all bookings.
 class BookingError extends Error {}
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const authorization = await requireRole("PASSENGER");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const body = await readJsonObject(request);
+  const tripId = typeof body?.tripId === "string" ? body.tripId.trim() : "";
+  const passengers = Array.isArray(body?.passengers)
+    ? (body.passengers as PassengerInput[])
+    : undefined;
 
-  const { tripId, passengers }: CreateBookingBody = await request
-    .json()
-    .catch(() => ({}));
-
-  if (!tripId?.trim()) {
-    return NextResponse.json({ error: "tripId is required" }, { status: 400 });
+  if (!tripId) {
+    return NextResponse.json({ error: "TRIP_ID_REQUIRED" }, { status: 400 });
   }
 
   if (!Array.isArray(passengers) || passengers.length === 0) {
     return NextResponse.json(
-      { error: "passengers must be a non-empty array" },
-      { status: 400 }
+      { error: "PASSENGERS_REQUIRED" },
+      { status: 400 },
     );
   }
 
   if (passengers.length > MAX_PASSENGERS) {
     return NextResponse.json(
-      { error: `passengers must contain at most ${MAX_PASSENGERS} items` },
-      { status: 400 }
+      { error: "TOO_MANY_PASSENGERS" },
+      { status: 400 },
     );
   }
 
   const invalidPassenger = passengers.some(
-    (p) =>
-      typeof p?.seatNumber !== "number" ||
-      !Number.isInteger(p.seatNumber) ||
-      p.seatNumber < 1 ||
-      !p.fullName?.trim() ||
-      !p.phone?.trim()
+    (passenger) =>
+      typeof passenger?.seatNumber !== "number" ||
+      !Number.isInteger(passenger.seatNumber) ||
+      passenger.seatNumber < 1 ||
+      typeof passenger.fullName !== "string" ||
+      !passenger.fullName.trim() ||
+      typeof passenger.phone !== "string" ||
+      !passenger.phone.trim() ||
+      passenger.fullName.trim().length > 120 ||
+      passenger.phone.trim().length > 80 ||
+      (passenger.email !== undefined &&
+        (typeof passenger.email !== "string" ||
+          !isEmail(normalizeEmail(passenger.email)) ||
+          normalizeEmail(passenger.email).length > 254)),
   );
 
   if (invalidPassenger) {
     return NextResponse.json(
-      { error: "each passenger requires seatNumber, fullName, and phone" },
-      { status: 400 }
+      { error: "INVALID_PASSENGER" },
+      { status: 400 },
     );
   }
 
-  const seatNumbers = passengers.map((p) => p.seatNumber as number);
-
+  const seatNumbers = passengers.map(
+    (passenger) => passenger.seatNumber as number,
+  );
   if (new Set(seatNumbers).size !== seatNumbers.length) {
     return NextResponse.json(
-      { error: "seatNumbers must be unique within the request" },
-      { status: 400 }
+      { error: "DUPLICATE_SEATS" },
+      { status: 400 },
     );
   }
 
-  const passengerId = session.user.id;
+  const passengerId = authorization.user.id;
+  const now = new Date();
+  const ethiopiaNow = ethiopiaWallClockAsUtc(now);
+  const holdExpiresAt = new Date(now.getTime() + PAYMENT_WINDOW_MS);
 
   try {
-    const bookings = await prisma.$transaction(async (tx) => {
-      const trip = await tx.trip.findUnique({
-        where: { id: tripId },
-      });
+    const bookings = await prisma.$transaction(
+      async (tx) => {
+        await reconcileLifecycleInTransaction(tx, {
+          tripId,
+          now,
+          deleteExpired: false,
+        });
 
-      if (!trip) {
-        throw new BookingError("TRIP_NOT_FOUND");
-      }
-
-      if (trip.status !== "SCHEDULED") {
-        throw new BookingError("TRIP_NOT_SCHEDULED");
-      }
-
-      const existing = await tx.booking.findMany({
-        where: { tripId, seatNumber: { in: seatNumbers } },
-        select: { seatNumber: true },
-      });
-
-      if (existing.length > 0) {
-        throw new BookingError("SEAT_TAKEN");
-      }
-
-      return Promise.all(
-        passengers.map((p) =>
-          tx.booking.create({
-            data: {
-              tripId,
-              seatNumber: p.seatNumber as number,
-              fullName: p.fullName as string,
-              phone: p.phone as string,
-              passengerId,
-              status: "CONFIRMED",
+        const trip = await tx.trip.findUnique({
+          where: { id: tripId },
+          include: {
+            route: { select: { isActive: true, archivedAt: true } },
+            bus: {
+              select: {
+                totalSeats: true,
+                isActive: true,
+                archivedAt: true,
+              },
             },
-          })
-        )
-      );
-    });
+          },
+        });
 
-    return NextResponse.json(
-      bookings.map((booking) => ({
-        id: booking.id,
-        seatNumber: booking.seatNumber,
-        fullName: (booking as typeof booking & { fullName: string }).fullName,
-      })),
-      { status: 201 }
+        if (!trip) throw new BookingError("TRIP_NOT_FOUND");
+        if (
+          trip.status !== "SCHEDULED" ||
+          trip.departureTime <= ethiopiaNow ||
+          !trip.route.isActive ||
+          trip.route.archivedAt ||
+          !trip.bus.isActive ||
+          trip.bus.archivedAt
+        ) {
+          throw new BookingError("TRIP_NOT_SCHEDULED");
+        }
+        const operatorPaymentSettings =
+          await tx.operatorPaymentSettings.findUnique({
+            where: { operatorId: trip.operatorId },
+            select: {
+              telebirrEnabled: true,
+              telebirrRecipientName: true,
+              telebirrMerchantNumber: true,
+              cbeEnabled: true,
+              cbeAccountHolderName: true,
+              cbeAccountNumber: true,
+            },
+          });
+        const paymentConfiguration =
+          resolveOperatorPaymentConfiguration(
+            operatorPaymentSettings,
+          );
+        if (
+          !paymentConfiguration.telebirr.available &&
+          !paymentConfiguration.cbe.available
+        ) {
+          throw new BookingError("ONLINE_PAYMENT_UNAVAILABLE");
+        }
+        if (
+          seatNumbers.some(
+            (seatNumber) => seatNumber > trip.bus.totalSeats,
+          )
+        ) {
+          throw new BookingError("INVALID_SEAT");
+        }
+
+        const existing = await tx.booking.findMany({
+          where: {
+            seatKey: {
+              in: seatNumbers.map((seatNumber) =>
+                createSeatKey(tripId, seatNumber),
+              ),
+            },
+          },
+          select: { seatNumber: true },
+        });
+        if (existing.length > 0) throw new BookingError("SEAT_TAKEN");
+
+        return Promise.all(
+          passengers.map((passenger) =>
+            tx.booking.create({
+              data: {
+                tripId,
+                seatNumber: passenger.seatNumber as number,
+                seatKey: createSeatKey(
+                  tripId,
+                  passenger.seatNumber as number,
+                ),
+                fullName: (passenger.fullName as string).trim(),
+                phone: (passenger.phone as string).trim(),
+                email: passenger.email
+                  ? normalizeEmail(passenger.email)
+                  : null,
+                passengerId,
+                status: "PENDING",
+                holdExpiresAt,
+              },
+              select: {
+                id: true,
+                seatNumber: true,
+                fullName: true,
+                status: true,
+                holdExpiresAt: true,
+              },
+            }),
+          ),
+        );
+      },
+      {
+        maxWait: 5_000,
+        timeout: 15_000,
+      },
     );
-  } catch (err) {
-    if (err instanceof BookingError) {
-      if (err.message === "TRIP_NOT_FOUND") {
-        return NextResponse.json({ error: "Trip not found" }, { status: 404 });
-      }
-      if (err.message === "TRIP_NOT_SCHEDULED") {
+
+    return NextResponse.json(bookings, { status: 201 });
+  } catch (error) {
+    if (error instanceof BookingError) {
+      if (error.message === "TRIP_NOT_FOUND") {
         return NextResponse.json(
-          { error: "Trip is not available for booking" },
-          { status: 409 }
+          { error: "TRIP_NOT_FOUND" },
+          { status: 404 },
         );
       }
-      return NextResponse.json(
-        { error: "One or more seats are already booked" },
-        { status: 409 }
-      );
+      if (error.message === "TRIP_NOT_SCHEDULED") {
+        return NextResponse.json(
+          { error: "TRIP_NOT_SCHEDULED" },
+          { status: 409 },
+        );
+      }
+      if (error.message === "ONLINE_PAYMENT_UNAVAILABLE") {
+        return NextResponse.json(
+          { error: "ONLINE_PAYMENT_UNAVAILABLE" },
+          { status: 503 },
+        );
+      }
+      if (error.message === "INVALID_SEAT") {
+        return NextResponse.json(
+          { error: "INVALID_SEAT" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({ error: "SEAT_TAKEN" }, { status: 409 });
     }
 
-    // Unique constraint violation — a seat was booked by a concurrent request.
     if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2002"
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
     ) {
-      return NextResponse.json(
-        { error: "One or more seats are already booked" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "SEAT_TAKEN" }, { status: 409 });
     }
 
-    throw err;
+    throw error;
   }
 }

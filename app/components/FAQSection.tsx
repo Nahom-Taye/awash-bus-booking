@@ -1,61 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
-const FAQS = [
-  {
-    question: "How do I book a ticket?",
-    answer:
-      "Search for your trip, select a seat, enter passenger details, and confirm your booking. You must be logged in to book.",
-  },
-  {
-    question: "Can I cancel a booking?",
-    answer:
-      "Currently bookings cannot be cancelled online. Please contact our offices directly for cancellations.",
-  },
-  {
-    question: "How do I pay?",
-    answer:
-      "Payment is currently handled at the ticketing office. Online payment via Telebirr and CBE Birr is coming soon.",
-  },
-  {
-    question: "How early should I arrive?",
-    answer:
-      "We recommend arriving at least 30 minutes before your scheduled departure time.",
-  },
-  {
-    question: "Can I book for multiple passengers?",
-    answer:
-      "Yes. You can book up to 6 seats in a single transaction, with individual details for each passenger.",
-  },
-];
+const FAQ_IDS = ["1", "2", "3", "4", "5"] as const;
 
 export default function FAQSection() {
+  const t = useTranslations("home.faq");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="bg-white px-6 py-20">
-      <div className="mx-auto w-full max-w-3xl">
-        <h2 className="text-center text-3xl font-bold text-awash-black">
-          Frequently Asked Questions
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-awash-grey-dark">
-          Helpful answers for planning and booking your journey.
-        </p>
+    <section id="faq" className="scroll-mt-24 bg-white py-20 sm:py-24">
+      <div className="awash-container grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
+        <div>
+          <p className="awash-section-label">{t("eyebrow")}</p>
+          <h2 className="mt-3 max-w-lg text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
+            {t("title")}
+          </h2>
+          <p className="mt-4 max-w-lg leading-7 text-stone-600">
+            {t("description")}
+          </p>
+        </div>
 
-        <div className="mt-10 space-y-3">
-          {FAQS.map((item, index) => {
+        <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+          {FAQ_IDS.map((id, index) => {
             const isOpen = openIndex === index;
-            const answerId = `faq-answer-${index}`;
+            const answerId = `faq-answer-${id}`;
 
             return (
               <article
-                key={item.question}
-                className={`overflow-hidden rounded-lg border border-awash-grey bg-white transition ${
-                  isOpen
-                    ? "border-l-4 border-l-awash-orange shadow-sm"
-                    : "border-l-4 border-l-transparent"
-                }`}
+                key={id}
+                className={index > 0 ? "border-t border-stone-200" : ""}
               >
                 <h3>
                   <button
@@ -63,32 +38,24 @@ export default function FAQSection() {
                     aria-controls={answerId}
                     aria-expanded={isOpen}
                     onClick={() => setOpenIndex(isOpen ? null : index)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-semibold text-awash-black transition hover:bg-awash-orange-bg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-awash-orange"
+                    className="flex w-full items-center justify-between gap-5 px-5 py-5 text-left font-semibold text-stone-900 transition hover:bg-orange-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-awash-orange sm:px-6"
                   >
-                    <span>{item.question}</span>
+                    <span>{t(`q${id}`)}</span>
                     <span
                       aria-hidden="true"
-                      className={`text-awash-orange transition-transform duration-200 ${
-                        isOpen ? "rotate-180" : ""
-                      }`}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-50 text-lg font-medium text-awash-orange"
                     >
-                      ▼
+                      {isOpen ? "−" : "+"}
                     </span>
                   </button>
                 </h3>
-
-                <div
-                  id={answerId}
-                  className={`grid transition-[grid-template-rows] duration-200 ${
-                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    <p className="px-5 pb-5 leading-7 text-awash-grey-dark">
-                      {item.answer}
+                {isOpen && (
+                  <div id={answerId} className="px-5 pb-5 sm:px-6 sm:pb-6">
+                    <p className="max-w-2xl leading-7 text-stone-600">
+                      {t(`a${id}`)}
                     </p>
                   </div>
-                </div>
+                )}
               </article>
             );
           })}

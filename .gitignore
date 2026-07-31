@@ -1,5 +1,4 @@
-# dependencies
-/node_modules
+/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -8,34 +7,47 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
 /.next/
 /out/
+/build/
+/coverage/
+/test-results/
+/playwright-report/
 
-# production
-/build
+.env
+.env.local
+.env.development
+.env.production
+.env.*
+!.env.example
 
-# misc
+*.log
+logs/
+*.tmp
+*.temp
+tmp/
+temp/
+*.db
+*.sqlite
+*.sqlite3
+
 .DS_Store
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
+*.key
 *.tsbuildinfo
 next-env.d.ts
 
-/app/generated/prisma
+.vercel/
+.agents/
+.idea/
+.vscode/
+
+prompts/
+*.prompt.md
+*.prompt.txt
+chat-exports/
+chat-export*
+screenshots/
+*.screenshot.*
+
+/app/generated/prisma/

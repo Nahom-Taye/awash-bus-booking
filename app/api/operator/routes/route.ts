@@ -1,25 +1,20 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-
-interface CreateRouteBody {
-  origin?: string;
-  destination?: string;
-}
+import { requireRole } from "@/lib/authorization";
+import {
+  cityByValue,
+  normalizeCityValue,
+} from "@/lib/ethiopian-cities";
+import { readJsonObject } from "@/lib/validation";
 
 export async function GET() {
-  const session = await auth();
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
   const routes = await prisma.route.findMany({
-    where: { operatorId: session.user.id },
+    where: { operatorId: authorization.user.id },
+    include: { _count: { select: { trips: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -27,52 +22,115 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const authorization = await requireRole("OPERATOR");
+  if (authorization.response) return authorization.response;
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const body = await readJsonObject(request);
+  const rawOrigin = typeof body?.origin === "string" ? body.origin : "";
+  const rawDestination =
+    typeof body?.destination === "string" ? body.destination : "";
+  const customDestinationEn =
+    typeof body?.customDestinationEn === "string"
+      ? body.customDestinationEn.trim()
+      : "";
+  const customDestinationAm =
+    typeof body?.customDestinationAm === "string"
+      ? body.customDestinationAm.trim()
+      : "";
 
-  if (session.user.role !== "OPERATOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { origin, destination }: CreateRouteBody = await request
-    .json()
-    .catch(() => ({}));
-
-  if (!origin?.trim() || !destination?.trim()) {
+  if (!rawOrigin.trim() || !rawDestination.trim()) {
     return NextResponse.json(
-      { error: "origin and destination are required" },
+      { error: "ROUTE_FIELDS_REQUIRED" },
       { status: 400 }
     );
   }
 
-  const trimmedOrigin = origin.trim();
-  const trimmedDestination = destination.trim();
+  const originCity = cityByValue(rawOrigin);
+  const destinationCity = cityByValue(rawDestination);
 
-  const existing = await prisma.route.findFirst({
+  if (!originCity) {
+    return NextResponse.json(
+      { error: "INVALID_ROUTE_CITY" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    !destinationCity &&
+    (!customDestinationEn ||
+      !customDestinationAm ||
+      customDestinationEn.length > 80 ||
+      customDestinationAm.length > 80)
+  ) {
+    return NextResponse.json(
+      { error: "CUSTOM_CITY_NAMES_REQUIRED" },
+      { status: 400 },
+    );
+  }
+
+  const originKey = originCity.value;
+  const destinationKey = destinationCity
+    ? destinationCity.value
+    : normalizeCityValue(customDestinationEn);
+
+  if (!destinationKey || destinationKey.length > 80) {
+    return NextResponse.json(
+      { error: "INVALID_ROUTE_CITY" },
+      { status: 400 },
+    );
+  }
+
+  if (originKey === destinationKey) {
+    return NextResponse.json(
+      { error: "ROUTE_SAME_CITY" },
+      { status: 400 },
+    );
+  }
+
+  const existing = await prisma.route.findUnique({
     where: {
-      operatorId: session.user.id,
-      origin: trimmedOrigin,
-      destination: trimmedDestination,
+      operatorId_originKey_destinationKey: {
+        operatorId: authorization.user.id,
+        originKey,
+        destinationKey,
+      },
     },
   });
 
   if (existing) {
     return NextResponse.json(
-      { error: "A route with this origin and destination already exists" },
+      { error: "ROUTE_EXISTS" },
       { status: 409 }
     );
   }
 
-  const route = await prisma.route.create({
-    data: {
-      origin: trimmedOrigin,
-      destination: trimmedDestination,
-      operatorId: session.user.id,
-    },
-  });
+  try {
+    const route = await prisma.route.create({
+      data: {
+        origin: originKey,
+        destination: destinationKey,
+        originKey,
+        destinationKey,
+        originEn: originCity.en,
+        originAm: originCity.am,
+        destinationEn: destinationCity?.en ?? customDestinationEn,
+        destinationAm: destinationCity?.am ?? customDestinationAm,
+        operatorId: authorization.user.id,
+      },
+      include: { _count: { select: { trips: true } } },
+    });
 
-  return NextResponse.json(route, { status: 201 });
+    return NextResponse.json(route, { status: 201 });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "ROUTE_EXISTS" },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 }
